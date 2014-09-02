@@ -33,6 +33,7 @@
 #ifdef CONFIG_RCU_BOOST
 
 #include "../locking/rtmutex_common.h"
+#define RCU_BOOST_PRIO CONFIG_RCU_BOOST_PRIO
 
 /*
  * Control variables for per-CPU and per-rcu_node kthreads.  These
@@ -43,7 +44,11 @@ DEFINE_PER_CPU(unsigned int, rcu_cpu_kthread_status);
 DEFINE_PER_CPU(unsigned int, rcu_cpu_kthread_loops);
 DEFINE_PER_CPU(char, rcu_cpu_has_work);
 
-#endif /* #ifdef CONFIG_RCU_BOOST */
+#else /* #ifdef CONFIG_RCU_BOOST */
+
+#define RCU_BOOST_PRIO RCU_KTHREAD_PRIO
+
+#endif /* #else #ifdef CONFIG_RCU_BOOST */
 
 #ifdef CONFIG_RCU_NOCB_CPU
 static cpumask_var_t rcu_nocb_mask; /* CPUs to have callbacks offloaded. */
