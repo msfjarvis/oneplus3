@@ -323,7 +323,7 @@ static int rcu_pending(int cpu);
 /*
  * Return the number of RCU-sched batches processed thus far for debug & stats.
  */
-long rcu_batches_completed_sched(void)
+unsigned long rcu_batches_completed_sched(void)
 {
 	return rcu_sched_state.completed;
 }
@@ -332,7 +332,7 @@ EXPORT_SYMBOL_GPL(rcu_batches_completed_sched);
 /*
  * Return the number of RCU BH batches processed thus far for debug & stats.
  */
-long rcu_batches_completed_bh(void)
+unsigned long rcu_batches_completed_bh(void)
 {
 	return rcu_bh_state.completed;
 }
