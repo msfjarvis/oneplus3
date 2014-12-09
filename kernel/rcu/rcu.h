@@ -135,4 +135,10 @@ int rcu_jiffies_till_stall_check(void);
  */
 #define TPS(x)  tracepoint_string(x)
 
+/*
+ * This function really isn't for public consumption, but RCU is special in
+ * that context switches can allow the state machine to make progress.
+ */
+extern void resched_cpu(int cpu);
+
 #endif /* __LINUX_RCU_H */
