@@ -4,7 +4,7 @@
 
 ifdef CONFIG_FUNCTION_TRACER
 ORIG_CFLAGS := $(KBUILD_CFLAGS)
-KBUILD_CFLAGS = $(subst -pg,,$(ORIG_CFLAGS))
+KBUILD_CFLAGS = $(subst $(CC_FLAGS_FTRACE),,$(ORIG_CFLAGS))
 endif
 
 # These files are disabled because they produce lots of non-interesting and/or

@@ -13,8 +13,8 @@ obj-y     = fork.o exec_domain.o panic.o \
 
 ifdef CONFIG_FUNCTION_TRACER
 # Do not trace debug files and internal ftrace files
-CFLAGS_REMOVE_cgroup-debug.o = -pg
-CFLAGS_REMOVE_irq_work.o = -pg
+CFLAGS_REMOVE_cgroup-debug.o = $(CC_FLAGS_FTRACE)
+CFLAGS_REMOVE_irq_work.o = $(CC_FLAGS_FTRACE)
 endif
 
 # Prevents flicker of uninteresting __do_softirq()/__local_bh_disable_ip()
