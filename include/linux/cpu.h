@@ -105,6 +105,8 @@ enum {
 					* Called on the new cpu, just before
 					* enabling interrupts. Must not sleep,
 					* must not fail */
+#define CPU_DYING_IDLE		0x000B /* CPU (unsigned)v dying, reached
+					* idle loop. */
 
 /* Used for CPU hotplug events occurring while tasks are frozen due to a suspend
  * operation in progress
