@@ -463,3 +463,7 @@ in your dentry operations instead.
 	of the in-tree instances did).  inode_hash_lock is still held,
 	of course, so they are still serialized wrt removal from inode hash,
 	as well as wrt set() callback of iget5_locked().
+--
+[mandatory]
+	__fd_install() & fd_install() can now sleep. Callers should not
+	hold a spinlock	or other resources that do not allow a schedule.
