@@ -2,6 +2,7 @@ menu "CPUQuiet Framework"
 
 config CPU_QUIET
 	bool "CPUQuiet Framework"
+	depends on HOTPLUG_CPU
 	help
 	 Cpuquiet implements pluggable policies for forcing cpu cores into a
 	 quiescent state. Appropriate policies will save power without hurting
