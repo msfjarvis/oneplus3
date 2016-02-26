@@ -899,8 +899,8 @@ static int update_request_legacy(uint32_t cl, unsigned index)
 	uint64_t req_clk = 0, req_bw = 0, curr_clk = 0, curr_bw = 0;
 	struct msm_bus_client *client = (struct msm_bus_client *)cl;
 	if (IS_ERR_OR_NULL(client)) {
-		MSM_BUS_ERR("msm_bus_scale_client update req error %d\n",
-				(uint32_t)client);
+		//MSM_BUS_ERR("msm_bus_scale_client update req error %d\n",
+		//		(uint32_t)client);
 		return -ENXIO;
 	}
 
@@ -911,36 +911,36 @@ static int update_request_legacy(uint32_t cl, unsigned index)
 	curr = client->curr;
 	pdata = client->pdata;
 	if (!pdata) {
-		MSM_BUS_ERR("Null pdata passed to update-request\n");
+		//MSM_BUS_ERR("Null pdata passed to update-request\n");
 		ret = -ENXIO;
 		goto err;
 	}
 
 	if (index >= pdata->num_usecases) {
-		MSM_BUS_ERR("Client %u passed invalid index: %d\n",
-			(uint32_t)client, index);
+		//MSM_BUS_ERR("Client %u passed invalid index: %d\n",
+		//	(uint32_t)client, index);
 		ret = -ENXIO;
 		goto err;
 	}
 
-	MSM_BUS_DBG("cl: %u index: %d curr: %d num_paths: %d\n",
-		cl, index, client->curr, client->pdata->usecase->num_paths);
+	//MSM_BUS_DBG("cl: %u index: %d curr: %d num_paths: %d\n",
+	//	cl, index, client->curr, client->pdata->usecase->num_paths);
 
 	for (i = 0; i < pdata->usecase->num_paths; i++) {
 		src = msm_bus_board_get_iid(client->pdata->usecase[index].
 			vectors[i].src);
 		if (src == -ENXIO) {
-			MSM_BUS_ERR("Master %d not supported. Request cannot"
-				" be updated\n", client->pdata->usecase->
-				vectors[i].src);
+			//MSM_BUS_ERR("Master %d not supported. Request cannot"
+			//	" be updated\n", client->pdata->usecase->
+			//	vectors[i].src);
 			goto err;
 		}
 
 		if (msm_bus_board_get_iid(client->pdata->usecase[index].
 			vectors[i].dst) == -ENXIO) {
-			MSM_BUS_ERR("Slave %d not supported. Request cannot"
-				" be updated\n", client->pdata->usecase->
-				vectors[i].dst);
+			//MSM_BUS_ERR("Slave %d not supported. Request cannot"
+			//	" be updated\n", client->pdata->usecase->
+			//	vectors[i].dst);
 		}
 
 		pnode = client->src_pnode[i];
@@ -952,14 +952,14 @@ static int update_request_legacy(uint32_t cl, unsigned index)
 		} else {
 			curr_clk = client->pdata->usecase[curr].vectors[i].ib;
 			curr_bw = client->pdata->usecase[curr].vectors[i].ab;
-			MSM_BUS_DBG("ab: %llu ib: %llu\n", curr_bw, curr_clk);
+			//MSM_BUS_DBG("ab: %llu ib: %llu\n", curr_bw, curr_clk);
 		}
 
 		if (!pdata->active_only) {
 			ret = update_path(src, pnode, req_clk, req_bw,
 				curr_clk, curr_bw, 0, pdata->active_only);
 			if (ret) {
-				MSM_BUS_ERR("Update path failed! %d\n", ret);
+				//MSM_BUS_ERR("Update path failed! %d\n", ret);
 				goto err;
 			}
 		}
@@ -967,7 +967,7 @@ static int update_request_legacy(uint32_t cl, unsigned index)
 		ret = update_path(src, pnode, req_clk, req_bw, curr_clk,
 				curr_bw, ACTIVE_CTX, pdata->active_only);
 		if (ret) {
-			MSM_BUS_ERR("Update Path failed! %d\n", ret);
+			//MSM_BUS_ERR("Update Path failed! %d\n", ret);
 			goto err;
 		}
 	}
