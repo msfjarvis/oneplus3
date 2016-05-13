@@ -2341,7 +2341,7 @@ static inline void decay_scaled_stat(struct sched_avg *sa, u64 periods);
 /* Initial task load. Newly created tasks are assigned this load. */
 unsigned int __read_mostly sched_init_task_load_pelt;
 unsigned int __read_mostly sched_init_task_load_windows;
-unsigned int __read_mostly sysctl_sched_init_task_load_pct = 100;
+unsigned int __read_mostly sysctl_sched_init_task_load_pct = 15;
 
 unsigned int max_task_load(void)
 {
