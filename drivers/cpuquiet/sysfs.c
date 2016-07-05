@@ -225,10 +225,10 @@ static ssize_t store_nr_thermal_max_cpus(struct cpuquiet_attribute *cattr,
 CPQ_ATTRIBUTE(current_governor, 0644, show_current_governor,
 			store_current_governor);
 CPQ_ATTRIBUTE(available_governors, 0444, show_available_governors, NULL);
-CPQ_ATTRIBUTE(nr_min_cpus, 0644, show_nr_min_cpus, store_nr_min_cpus);
+CPQ_ATTRIBUTE(nr_min_cpus, 0664, show_nr_min_cpus, store_nr_min_cpus);
 CPQ_ATTRIBUTE(nr_max_cpus, 0444, show_nr_max_cpus, NULL);
-CPQ_ATTRIBUTE(nr_power_max_cpus, 0644, show_nr_power_max_cpus, store_nr_power_max_cpus);
-CPQ_ATTRIBUTE(nr_thermal_max_cpus, 0644, show_nr_thermal_max_cpus, store_nr_thermal_max_cpus);
+CPQ_ATTRIBUTE(nr_power_max_cpus, 0664, show_nr_power_max_cpus, store_nr_power_max_cpus);
+CPQ_ATTRIBUTE(nr_thermal_max_cpus, 0664, show_nr_thermal_max_cpus, store_nr_thermal_max_cpus);
 
 static struct attribute *cpuquiet_default_attrs[] = {
 	&current_governor_attr.attr,

@@ -754,7 +754,7 @@ static ssize_t show_uint_array(struct cpuquiet_attribute *cattr,
 	return temp - buf;
 }
 
-CPQ_SIMPLE_ATTRIBUTE(balance_level, 0644, uint);
+CPQ_SIMPLE_ATTRIBUTE(balance_level, 0660, uint);
 CPQ_SIMPLE_ATTRIBUTE(load_sample_rate, 0644, uint);
 CPQ_SIMPLE_ATTRIBUTE(userspace_suspend_state, 0644, uint);
 CPQ_CUSTOM_ATTRIBUTE(up_delay, 0644,
@@ -765,9 +765,9 @@ CPQ_CUSTOM_ATTRIBUTE(idle_bottom_freq, 0644,
 			show_uint_array, store_uint_array);
 CPQ_CUSTOM_ATTRIBUTE(idle_top_freq, 0644,
 			show_uint_array, store_uint_array);
-CPQ_CUSTOM_ATTRIBUTE(nr_down_run_thresholds, 0644,
+CPQ_CUSTOM_ATTRIBUTE(nr_down_run_thresholds, 0660,
 			show_uint_array, store_uint_array);
-CPQ_CUSTOM_ATTRIBUTE(nr_run_thresholds, 0644,
+CPQ_CUSTOM_ATTRIBUTE(nr_run_thresholds, 0660,
 			show_uint_array, store_uint_array);
 
 static struct attribute *rqbalance_attrs[] = {
