@@ -52,6 +52,8 @@
 #include <linux/notifier.h>
 #endif
 
+extern bool s1302_is_keypad_stopped(void);
+
 static unsigned int ignor_home_for_ESD = 0;
 module_param(ignor_home_for_ESD, uint, S_IRUGO | S_IWUSR);
 
@@ -319,12 +321,18 @@ static ssize_t report_home_set(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct  fpc1020_data *fpc1020 = dev_get_drvdata(dev);
+	bool ignore_keypad;
+
+	if (s1302_is_keypad_stopped() || virtual_key_enable)
+		ignore_keypad = true;
+	else
+		ignore_keypad = false;
 
 	if(ignor_home_for_ESD)
 		return -EINVAL;
 	if (!strncmp(buf, "down", strlen("down")))
 	{
-        if(!virtual_key_enable){
+        if(!ignore_keypad){
             input_report_key(fpc1020->input_dev,
                             KEY_HOME, 1);
             input_sync(fpc1020->input_dev);
@@ -332,7 +340,7 @@ static ssize_t report_home_set(struct device *dev,
 	}
 	else if (!strncmp(buf, "up", strlen("up")))
 	{
-        if(!virtual_key_enable){
+        if(!ignore_keypad){
             input_report_key(fpc1020->input_dev,
                             KEY_HOME, 0);
             input_sync(fpc1020->input_dev);

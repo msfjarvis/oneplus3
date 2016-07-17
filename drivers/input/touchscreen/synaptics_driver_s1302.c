@@ -1962,6 +1962,13 @@ static int choice_gpio_function(struct synaptics_ts_data *ts)
 	return ret;
 }
 
+bool s1302_is_keypad_stopped(void)
+{
+	struct synaptics_ts_data *ts = tc_g;
+
+	return ts->stop_keypad;
+}
+
 static int synaptics_ts_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 #ifdef CONFIG_SYNAPTIC_RED
