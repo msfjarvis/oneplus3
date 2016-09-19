@@ -66,3 +66,6 @@ obj-$(CONFIG_LEDS_DAC124S085)		+= leds-dac124s085.o
 
 # LED Triggers
 obj-$(CONFIG_LEDS_TRIGGERS)		+= trigger/
+
+# Boeffla touch key control
+obj-$(CONFIG_BOEFFLA_TOUCH_KEY_CONTROL)		+= boeffla_touchkey_control.o

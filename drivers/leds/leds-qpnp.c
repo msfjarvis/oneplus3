@@ -27,6 +27,10 @@
 #include <linux/regulator/consumer.h>
 #include <linux/delay.h>
 
+#ifdef CONFIG_BOEFFLA_TOUCH_KEY_CONTROL
+#include <linux/boeffla_touchkey_control.h>
+#endif
+
 #define WLED_MOD_EN_REG(base, n)	(base + 0x60 + n*0x10)
 #define WLED_IDAC_DLY_REG(base, n)	(WLED_MOD_EN_REG(base, n) + 0x01)
 #define WLED_FULL_SCALE_REG(base, n)	(WLED_IDAC_DLY_REG(base, n) + 0x01)
@@ -572,6 +576,10 @@ static struct pwm_device *kpdbl_master;
 static u32 kpdbl_master_period_us;
 DECLARE_BITMAP(kpdbl_leds_in_use, NUM_KPDBL_LEDS);
 static bool is_kpdbl_master_turn_on;
+
+#ifdef CONFIG_BOEFFLA_TOUCH_KEY_CONTROL
+struct led_classdev *led_cdev_backlight_button = NULL;
+#endif
 
 static int
 qpnp_led_masked_write(struct qpnp_led_data *led, u16 addr, u8 mask, u8 val)
@@ -1812,6 +1820,18 @@ static void qpnp_led_set(struct led_classdev *led_cdev,
 {
 	struct qpnp_led_data *led;
 
+#ifdef CONFIG_BOEFFLA_TOUCH_KEY_CONTROL
+	if (strcmp(led_cdev->name, "button-backlight") == 0)
+	{
+		if (led_cdev_backlight_button == NULL)
+			led_cdev_backlight_button = led_cdev;
+
+		value = btkc_led_set(value);
+		if (value == -1)
+			return;
+	}
+#endif
+
 	led = container_of(led_cdev, struct qpnp_led_data, cdev);
 	if (value < LED_OFF) {
 		dev_err(&led->spmi_dev->dev, "Invalid brightness value\n");
@@ -1827,6 +1847,28 @@ static void qpnp_led_set(struct led_classdev *led_cdev,
 	else
 		schedule_work(&led->work);
 }
+
+#ifdef CONFIG_BOEFFLA_TOUCH_KEY_CONTROL
+void qpnp_boeffla_set_button_backlight(enum led_brightness value)
+{
+	struct qpnp_led_data *led;
+	led = container_of(led_cdev_backlight_button, struct qpnp_led_data, cdev);
+
+	if (value < LED_OFF) {
+		dev_err(&led->spmi_dev->dev, "Invalid brightness value\n");
+		return;
+	}
+
+	if (value > led->cdev.max_brightness)
+		value = led->cdev.max_brightness;
+
+	led->cdev.brightness = value;
+	if (led->in_order_command_processing)
+		queue_work(led->workqueue, &led->work);
+	else
+		schedule_work(&led->work);
+}
+#endif
 
 static void __qpnp_led_work(struct qpnp_led_data *led,
 				enum led_brightness value)

@@ -46,6 +46,10 @@
 #include <linux/timer.h>
 #include <linux/time.h>
 
+#ifdef CONFIG_BOEFFLA_TOUCH_KEY_CONTROL
+#include <linux/boeffla_touchkey_control.h>
+#endif
+
 #ifdef CONFIG_FB
 #include <linux/fb.h>
 #include <linux/notifier.h>
@@ -1433,6 +1437,9 @@ void int_touch(void)
 		finger_info <<= 1;
 		finger_status =  points.status & 0x03;
 		if (finger_status) {
+#ifdef CONFIG_BOEFFLA_TOUCH_KEY_CONTROL
+			btkc_touch_start();
+#endif
 			input_mt_slot(ts->input_dev, i);
 			input_mt_report_slot_state(ts->input_dev, MT_TOOL_FINGER, finger_status);
 			input_report_key(ts->input_dev, BTN_TOOL_FINGER, 1);
@@ -1476,6 +1483,9 @@ void int_touch(void)
 
 	if (finger_num == 0/* && last_status && (check_key <= 1)*/)
 	{
+#ifdef CONFIG_BOEFFLA_TOUCH_KEY_CONTROL
+		btkc_touch_stop();
+#endif
 		input_report_key(ts->input_dev, BTN_TOOL_FINGER, 0);
 #ifndef TYPE_B_PROTOCOL
 		input_mt_sync(ts->input_dev);
