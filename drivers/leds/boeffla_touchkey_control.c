@@ -18,6 +18,9 @@
 /*
  * Change log:
  *
+ * 1.2.0 (22.09.2016)
+ *	- Change duration from seconds to milliseconds
+ *
  * 1.1.0 (19.09.2016)
  *	- Add kernel controlled handling
  *
@@ -144,7 +147,7 @@ void btkc_touch_button()
 	{
 		qpnp_boeffla_set_button_backlight(cacheBrightness);
 		cancel_delayed_work(&led_work);
-		schedule_delayed_work(&led_work, msecs_to_jiffies(btkc_timeout * 1000));
+		schedule_delayed_work(&led_work, msecs_to_jiffies(btkc_timeout));
 	}
 }
 
@@ -241,6 +244,10 @@ static ssize_t btkc_timeout_store(struct device *dev, struct device_attribute *a
 	if ((val >= TIMEOUT_MIN) || (val <= TIMEOUT_MAX))
 	{
 		btkc_timeout = val;
+
+		// temporary: help migration from seconds to milliseconds
+		if (btkc_timeout <= 30)
+			btkc_timeout = btkc_timeout * 1000;
 
 		// reset LED after every timeout change
 		cancel_delayed_work(&led_work);

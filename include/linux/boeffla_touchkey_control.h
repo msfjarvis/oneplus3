@@ -28,12 +28,12 @@
 
 #define TIMEOUT_DEFAULT		0
 #define TIMEOUT_MIN			0
-#define TIMEOUT_MAX			30
+#define TIMEOUT_MAX			30000
 
 #define BRIGHTNESS_DEFAULT	40
 #define BRIGHTNESS_OFF		0
 
-#define BTK_CONTROL_VERSION 	"1.1.0"
+#define BTK_CONTROL_VERSION 	"1.2.0"
 
 
 /*****************************************/
