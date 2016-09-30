@@ -1852,6 +1852,10 @@ static void qpnp_led_set(struct led_classdev *led_cdev,
 void qpnp_boeffla_set_button_backlight(enum led_brightness value)
 {
 	struct qpnp_led_data *led;
+
+	if (led_cdev_backlight_button == NULL)
+		return;
+
 	led = container_of(led_cdev_backlight_button, struct qpnp_led_data, cdev);
 
 	if (value < LED_OFF) {
