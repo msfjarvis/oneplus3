@@ -16,6 +16,7 @@
 #include <linux/percpu-defs.h>
 #include <linux/slab.h>
 #include <linux/tick.h>
+#include <linux/jiffies.h>
 #include "cpufreq_governor.h"
 
 /* On-demand governor macros */
@@ -26,6 +27,9 @@
 #define MICRO_FREQUENCY_MIN_SAMPLE_RATE		(10000)
 #define MIN_FREQUENCY_UP_THRESHOLD		(11)
 #define MAX_FREQUENCY_UP_THRESHOLD		(100)
+#define TOUCH_LOAD				(70)
+#define TOUCH_LOAD_THRESHOLD			(10)
+#define TOUCH_LOAD_DURATION			(1000)
 
 static DEFINE_PER_CPU(struct od_cpu_dbs_info_s, od_cpu_dbs_info);
 static DEFINE_PER_CPU(struct od_dbs_tuners *, cached_tuners);
@@ -155,12 +159,21 @@ static void dbs_freq_increase(struct cpufreq_policy *policy, unsigned int freq)
  */
 static void od_check_cpu(int cpu, unsigned int load)
 {
+	bool touch = false;
 	struct od_cpu_dbs_info_s *dbs_info = &per_cpu(od_cpu_dbs_info, cpu);
 	struct cpufreq_policy *policy = dbs_info->cdbs.cur_policy;
 	struct dbs_data *dbs_data = policy->governor_data;
 	struct od_dbs_tuners *od_tuners = dbs_data->tuners;
 
 	dbs_info->freq_lo = 0;
+
+	if (jiffies_to_msecs(jiffies - touch_jiffies) <
+				od_tuners->touch_load_duration)
+		touch = true;
+
+	if (touch && load < od_tuners->touch_load &&
+			load > od_tuners->touch_load_threshold)
+		load = od_tuners->touch_load;
 
 	/* Check for frequency increase */
 	if (load > od_tuners->up_threshold) {
@@ -426,12 +439,60 @@ static ssize_t store_powersave_bias(struct dbs_data *dbs_data, const char *buf,
 	return count;
 }
 
+static ssize_t store_touch_load(struct dbs_data *dbs_data, const char *buf,
+		size_t count)
+{
+	struct od_dbs_tuners *od_tuners = dbs_data->tuners;
+	unsigned int input;
+	int ret;
+	ret = sscanf(buf, "%u", &input);
+
+	if (ret != 1 || input > 100 || input < 1)
+		return -EINVAL;
+
+	od_tuners->touch_load = input;
+	return count;
+}
+
+static ssize_t store_touch_load_threshold(struct dbs_data *dbs_data,
+		const char *buf, size_t count)
+{
+	struct od_dbs_tuners *od_tuners = dbs_data->tuners;
+	unsigned int input;
+	int ret;
+	ret = sscanf(buf, "%u", &input);
+
+	if (ret != 1 || input > 100 || input < 1)
+		return -EINVAL;
+
+	od_tuners->touch_load_threshold = input;
+	return count;
+}
+
+static ssize_t store_touch_load_duration(struct dbs_data *dbs_data,
+		const char *buf, size_t count)
+{
+	struct od_dbs_tuners *od_tuners = dbs_data->tuners;
+	unsigned int input;
+	int ret;
+	ret = sscanf(buf, "%u", &input);
+
+	if (ret != 1 || input < 0)
+		return -EINVAL;
+
+	od_tuners->touch_load_duration = input;
+	return count;
+}
+
 show_store_one(od, sampling_rate);
 show_store_one(od, io_is_busy);
 show_store_one(od, up_threshold);
 show_store_one(od, sampling_down_factor);
 show_store_one(od, ignore_nice_load);
 show_store_one(od, powersave_bias);
+show_store_one(od, touch_load);
+show_store_one(od, touch_load_threshold);
+show_store_one(od, touch_load_duration);
 declare_show_sampling_rate_min(od);
 
 gov_sys_pol_attr_rw(sampling_rate);
@@ -440,6 +501,9 @@ gov_sys_pol_attr_rw(up_threshold);
 gov_sys_pol_attr_rw(sampling_down_factor);
 gov_sys_pol_attr_rw(ignore_nice_load);
 gov_sys_pol_attr_rw(powersave_bias);
+gov_sys_pol_attr_rw(touch_load);
+gov_sys_pol_attr_rw(touch_load_threshold);
+gov_sys_pol_attr_rw(touch_load_duration);
 gov_sys_pol_attr_ro(sampling_rate_min);
 
 static struct attribute *dbs_attributes_gov_sys[] = {
@@ -450,6 +514,9 @@ static struct attribute *dbs_attributes_gov_sys[] = {
 	&ignore_nice_load_gov_sys.attr,
 	&powersave_bias_gov_sys.attr,
 	&io_is_busy_gov_sys.attr,
+	&touch_load_gov_sys.attr,
+	&touch_load_threshold_gov_sys.attr,
+	&touch_load_duration_gov_sys.attr,
 	NULL
 };
 
@@ -466,6 +533,9 @@ static struct attribute *dbs_attributes_gov_pol[] = {
 	&ignore_nice_load_gov_pol.attr,
 	&powersave_bias_gov_pol.attr,
 	&io_is_busy_gov_pol.attr,
+	&touch_load_gov_pol.attr,
+	&touch_load_threshold_gov_pol.attr,
+	&touch_load_duration_gov_pol.attr,
 	NULL
 };
 
@@ -563,6 +633,14 @@ static int od_init(struct dbs_data *dbs_data, struct cpufreq_policy *policy)
 		dbs_data->min_sampling_rate = MIN_SAMPLING_RATE_RATIO *
 			jiffies_to_usecs(10);
 	}
+
+	tuners->sampling_down_factor = DEF_SAMPLING_DOWN_FACTOR;
+	tuners->ignore_nice_load = 0;
+	tuners->powersave_bias = default_powersave_bias;
+	tuners->io_is_busy = should_io_be_busy();
+	tuners->touch_load_duration = TOUCH_LOAD_DURATION;
+	tuners->touch_load = TOUCH_LOAD;
+	tuners->touch_load_threshold = TOUCH_LOAD_THRESHOLD;
 
 	dbs_data->tuners = tuners;
 	mutex_init(&dbs_data->mutex);

@@ -19,8 +19,12 @@
 #include <linux/export.h>
 #include <linux/kernel_stat.h>
 #include <linux/slab.h>
+#include <linux/input.h>
 
 #include "cpufreq_governor.h"
+
+unsigned long touch_jiffies;
+EXPORT_SYMBOL_GPL(touch_jiffies);
 
 static struct attribute_group *get_sysfs_attr(struct dbs_data *dbs_data)
 {
@@ -239,6 +243,83 @@ static void set_sampling_rate(struct dbs_data *dbs_data,
 	}
 }
 
+static void gov_input_event(struct input_handle *handle, unsigned int type,
+		unsigned int code, int value)
+{
+	touch_jiffies = jiffies;
+}
+
+static int gov_input_connect(struct input_handler *handler,
+		struct input_dev *dev, const struct input_device_id *id)
+{
+	struct input_handle *handle;
+	int error;
+
+	handle = kzalloc(sizeof(struct input_handle), GFP_KERNEL);
+	if (!handle)
+		return -ENOMEM;
+
+	handle->dev = dev;
+	handle->handler = handler;
+	handle->name = "cpufreq";
+
+	error = input_register_handle(handle);
+	if (error)
+		goto err2;
+
+	error = input_open_device(handle);
+	if (error)
+		goto err1;
+
+	return 0;
+err1:
+	input_unregister_handle(handle);
+err2:
+	kfree(handle);
+	return error;
+}
+
+static void gov_input_disconnect(struct input_handle *handle)
+{
+	input_close_device(handle);
+	input_unregister_handle(handle);
+	kfree(handle);
+}
+
+static const struct input_device_id gov_ids[] = {
+	/* multi-touch touchscreen */
+	{
+		.flags = INPUT_DEVICE_ID_MATCH_EVBIT |
+			INPUT_DEVICE_ID_MATCH_ABSBIT,
+		.evbit = { BIT_MASK(EV_ABS) },
+		.absbit = { [BIT_WORD(ABS_MT_POSITION_X)] =
+			BIT_MASK(ABS_MT_POSITION_X) |
+			BIT_MASK(ABS_MT_POSITION_Y) },
+	},
+	/* touchpad */
+	{
+		.flags = INPUT_DEVICE_ID_MATCH_KEYBIT |
+			INPUT_DEVICE_ID_MATCH_ABSBIT,
+		.keybit = { [BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH) },
+		.absbit = { [BIT_WORD(ABS_X)] =
+			BIT_MASK(ABS_X) | BIT_MASK(ABS_Y) },
+	},
+	/* Keypad */
+	{
+		.flags = INPUT_DEVICE_ID_MATCH_EVBIT,
+		.evbit = { BIT_MASK(EV_KEY) },
+	},
+	{ },
+};
+
+static struct input_handler gov_input_handler = {
+	.event		= gov_input_event,
+	.connect	= gov_input_connect,
+	.disconnect	= gov_input_disconnect,
+	.name		= "cpufreq_gov",
+	.id_table	= gov_ids,
+};
+
 int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 		struct common_dbs_data *cdata, unsigned int event)
 {
@@ -411,6 +492,9 @@ int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 
 		gov_queue_work(dbs_data, policy,
 				delay_for_sampling_rate(sampling_rate), true);
+
+		if (!cpu)
+			rc = input_register_handler(&gov_input_handler);
 		break;
 
 	case CPUFREQ_GOV_STOP:
@@ -425,6 +509,8 @@ int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 
 		mutex_unlock(&dbs_data->mutex);
 
+		if (!cpu)
+			input_unregister_handler(&gov_input_handler);
 		break;
 
 	case CPUFREQ_GOV_LIMITS:
