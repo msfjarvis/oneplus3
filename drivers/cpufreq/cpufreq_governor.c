@@ -145,16 +145,24 @@ void dbs_check_cpu(struct dbs_data *dbs_data, int cpu)
 		 * - during long idle intervals
 		 * - explicitly set to zero
 		 */
-		if (unlikely(wall_time > (2 * sampling_rate) &&
-			     j_cdbs->prev_load)) {
-			load = j_cdbs->prev_load;
-
+		if (unlikely(wall_time > (2 * sampling_rate))) /*&&
+			     j_cdbs->prev_load))*/ {
+			unsigned int n_load = 100 * (wall_time - idle_time) / wall_time;
+			unsigned int new_load;
+			unsigned int busy = wall_time - idle_time;
+			if (busy > sampling_rate)
+				new_load = 100;
+			else
+				new_load = 100 * busy / sampling_rate;
+			load = new_load;
+			pr_debug("Idle cpu: %u, wall_time: %u, prev_load: %u, load: %u, new_load: %u\n",
+				j, wall_time, j_cdbs->prev_load, n_load, new_load);
 			/*
 			 * Perform a destructive copy, to ensure that we copy
 			 * the previous load only once, upon the first wake-up
 			 * from idle.
 			 */
-			j_cdbs->prev_load = 0;
+			j_cdbs->prev_load = load;
 		} else {
 			load = 100 * (wall_time - idle_time) / wall_time;
 			j_cdbs->prev_load = load;
