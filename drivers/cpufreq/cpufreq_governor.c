@@ -127,13 +127,8 @@ void dbs_check_cpu(struct dbs_data *dbs_data, int cpu)
 		 * actually is. This is undesirable for latency-sensitive bursty
 		 * workloads.
 		 *
-		 * To avoid this, we reuse the 'load' from the previous
-		 * time-window and give this task a chance to start with a
-		 * reasonably high CPU frequency. (However, we shouldn't over-do
-		 * this copy, lest we get stuck at a high load (high frequency)
-		 * for too long, even when the current system load has actually
-		 * dropped down. So we perform the copy only once, upon the
-		 * first wake-up from idle.)
+		 * To avoid this, we calculate 'load' only on the last
+		 * sampling period.
 		 *
 		 * Detecting this situation is easy: the governor's deferrable
 		 * timer would not have fired during CPU-idle periods. Hence
@@ -145,27 +140,15 @@ void dbs_check_cpu(struct dbs_data *dbs_data, int cpu)
 		 * - during long idle intervals
 		 * - explicitly set to zero
 		 */
-		if (unlikely(wall_time > (2 * sampling_rate))) /*&&
-			     j_cdbs->prev_load))*/ {
-			unsigned int n_load = 100 * (wall_time - idle_time) / wall_time;
-			unsigned int new_load;
+		if (unlikely(wall_time > (2 * sampling_rate))) {
 			unsigned int busy = wall_time - idle_time;
+
 			if (busy > sampling_rate)
-				new_load = 100;
+				load = 100;
 			else
-				new_load = 100 * busy / sampling_rate;
-			load = new_load;
-			pr_debug("Idle cpu: %u, wall_time: %u, prev_load: %u, load: %u, new_load: %u\n",
-				j, wall_time, j_cdbs->prev_load, n_load, new_load);
-			/*
-			 * Perform a destructive copy, to ensure that we copy
-			 * the previous load only once, upon the first wake-up
-			 * from idle.
-			 */
-			j_cdbs->prev_load = load;
+				load = 100 * busy / sampling_rate;
 		} else {
 			load = 100 * (wall_time - idle_time) / wall_time;
-			j_cdbs->prev_load = load;
 		}
 
 		if (load > max_load)
@@ -480,17 +463,11 @@ int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 		for_each_cpu(j, policy->cpus) {
 			struct cpu_dbs_common_info *j_cdbs =
 				dbs_data->cdata->get_cpu_cdbs(j);
-			unsigned int prev_load;
 
 			j_cdbs->cpu = j;
 			j_cdbs->cur_policy = policy;
 			j_cdbs->prev_cpu_idle = get_cpu_idle_time(j,
 					       &j_cdbs->prev_cpu_wall, io_busy);
-
-			prev_load = (unsigned int)
-				(j_cdbs->prev_cpu_wall - j_cdbs->prev_cpu_idle);
-			j_cdbs->prev_load = 100 * prev_load /
-					(unsigned int) j_cdbs->prev_cpu_wall;
 
 			if (ignore_nice)
 				j_cdbs->prev_cpu_nice =

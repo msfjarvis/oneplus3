@@ -142,6 +142,7 @@ struct cpu_dbs_common_info {
 	 * wake-up from idle.
 	 */
 	unsigned int prev_load;
+	unsigned int deferred_periods;
 	struct cpufreq_policy *cur_policy;
 	struct delayed_work work;
 	/*
