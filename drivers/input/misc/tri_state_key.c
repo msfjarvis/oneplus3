@@ -75,17 +75,24 @@ static void send_input(int key_code)
 
 static void switch_dev_work(struct work_struct *work)
 {
-	int key_code;
-	int mode;
+	int key_code, mode, key_state[3];
+
+	key_state[0] = gpio_get_value(switch_data->key1_gpio);
+	key_state[1] = gpio_get_value(switch_data->key2_gpio);
+	key_state[2] = gpio_get_value(switch_data->key3_gpio);
+
+	/* Spurious interrupt; at least one of the pins should be zero */
+	if (key_state[0] && key_state[1] && key_state[2])
+		return;
 
 	mutex_lock(&sem);
-	if (!gpio_get_value(switch_data->key3_gpio)) {
+	if (!key_state[2]) {
 		mode = 3;
 		key_code = key_code_slider_bottom;
-	} else if (!gpio_get_value(switch_data->key2_gpio)) {
+	} else if (!key_state[1]) {
 		mode = 2;
 		key_code = key_code_slider_middle;
-	} else if (!gpio_get_value(switch_data->key1_gpio)) {
+	} else {
 		mode = 1;
 		key_code = key_code_slider_top;
 	}
