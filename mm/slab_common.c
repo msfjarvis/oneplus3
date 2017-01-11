@@ -44,7 +44,7 @@ struct kmem_cache *kmem_cache;
  * Merge control. If this is set then no merging of slab caches will occur.
  * (Could be removed. This was introduced to pacify the merge skeptics.)
  */
-static int slab_nomerge;
+static int slab_nomerge = 1;
 
 static int __init setup_slab_nomerge(char *str)
 {
