@@ -2069,6 +2069,7 @@ static void binder_transaction(struct binder_proc *proc,
 	BUG_ON(!target_list);
 	t->work.type = BINDER_WORK_TRANSACTION;
 	tcomplete->type = BINDER_WORK_TRANSACTION_COMPLETE;
+	binder_enqueue_work(tcomplete, &thread->todo, __LINE__);
 
 	if (reply) {
 		BUG_ON(t->buffer->async_transaction != 0);
@@ -2100,7 +2101,6 @@ static void binder_transaction(struct binder_proc *proc,
 		binder_enqueue_work(&t->work, target_list, __LINE__);
 		binder_proc_unlock(target_node->proc, __LINE__);
 	}
-	binder_enqueue_work(tcomplete, &thread->todo, __LINE__);
 
 	if (target_wait) {
 		if (reply || !(t->flags & TF_ONE_WAY)) {
