@@ -502,7 +502,9 @@ static void msm_actuator_write_focus(
 
 	damping_code_step = damping_params->damping_step;
 	wait_time = damping_params->damping_delay;
-    pr_info ("cur=%d sign=%d step=%d\n",curr_lens_pos, sign_direction, damping_code_step);
+
+    	pr_debug("cur=%d sign=%d step=%d\n", curr_lens_pos, sign_direction, damping_code_step);
+
 	/* Write code based on damping_code_step in a loop */
 	for (next_lens_pos =
 		curr_lens_pos + (sign_direction * damping_code_step);
