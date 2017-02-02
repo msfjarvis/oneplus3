@@ -81,10 +81,10 @@ int drop_caches_sysctl_handler(struct ctl_table *table, int write,
 	return 0;
 }
 
-static void drop_caches_now(struct work_struct *work);
-static DECLARE_WORK(drop_caches_now_work, drop_caches_now);
+static void drop_caches_suspend(struct work_struct *work);
+static DECLARE_WORK(drop_caches_suspend_work, drop_caches_suspend);
 
-static void drop_caches_now(struct work_struct *work)
+static void drop_caches_suspend(struct work_struct *work)
 {
 	/* sleep for 200ms */
 	msleep(200);
@@ -103,7 +103,7 @@ static int fb_notifier(struct notifier_block *self,
 		int blank = *(int *)evdata->data;
 
 		if (blank == FB_BLANK_POWERDOWN) {
-			schedule_work_on(0, &drop_caches_now_work);
+			schedule_work_on(0, &drop_caches_suspend_work);
 			return NOTIFY_OK;
 		}
 		return NOTIFY_OK;
