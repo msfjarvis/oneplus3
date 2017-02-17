@@ -165,7 +165,7 @@ static inline int calc_load_write_idx(void)
 	 * If the folding window started, make sure we start writing in the
 	 * next idle-delta.
 	 */
-	if (!time_before(jiffies, calc_load_update))
+	if (!time_before(jiffies, READ_ONCE(calc_load_update)))
 		idx++;
 
 	return idx & 1;
@@ -304,13 +304,15 @@ calc_load_n(unsigned long load, unsigned long exp,
  */
 static void calc_global_nohz(void)
 {
+	unsigned long sample_window;
 	long delta, active, n;
 
-	if (!time_before(jiffies, calc_load_update + 10)) {
+	sample_window = READ_ONCE(calc_load_update);
+	if (!time_before(jiffies, sample_window + 10)) {
 		/*
 		 * Catch-up, fold however many we are behind still
 		 */
-		delta = jiffies - calc_load_update - 10;
+		delta = jiffies - sample_window - 10;
 		n = 1 + (delta / LOAD_FREQ);
 
 		active = atomic_long_read(&calc_load_tasks);
@@ -320,7 +322,7 @@ static void calc_global_nohz(void)
 		avenrun[1] = calc_load_n(avenrun[1], EXP_5, active, n);
 		avenrun[2] = calc_load_n(avenrun[2], EXP_15, active, n);
 
-		calc_load_update += n * LOAD_FREQ;
+		WRITE_ONCE(calc_load_update, sample_window + n * LOAD_FREQ);
 	}
 
 	/*
@@ -348,9 +350,11 @@ static inline void calc_global_nohz(void) { }
  */
 void calc_global_load(unsigned long ticks)
 {
+	unsigned long sample_window;
 	long active, delta;
 
-	if (time_before(jiffies, calc_load_update + 10))
+	sample_window = READ_ONCE(calc_load_update);
+	if (time_before(jiffies, sample_window + 10))
 		return;
 
 	/*
@@ -367,7 +371,7 @@ void calc_global_load(unsigned long ticks)
 	avenrun[1] = calc_load(avenrun[1], EXP_5, active);
 	avenrun[2] = calc_load(avenrun[2], EXP_15, active);
 
-	calc_load_update += LOAD_FREQ;
+	WRITE_ONCE(calc_load_update, sample_window + LOAD_FREQ);
 
 	/*
 	 * In case we idled for multiple LOAD_FREQ intervals, catch up in bulk.
