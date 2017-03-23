@@ -702,7 +702,7 @@ void tfa98xx_play_stop(void)
 {
 	struct tfa98xx *tfa98xx = g_tfa98xx;
 
-    pr_err("tfa stop\n");
+    pr_debug("tfa stop\n");
 
     if(g_tfa98xx == NULL)
     {
