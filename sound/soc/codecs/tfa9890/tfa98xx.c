@@ -466,7 +466,7 @@ static int tfa98xx_trigger(struct snd_pcm_substream *substream, int cmd,
 	//struct tfa98xx *tfa98xx = snd_soc_codec_get_drvdata(codec);
 	int ret = 0;
 
-	pr_err("trigger:%d(0:stop 1:start)\n", cmd);
+	pr_debug("trigger:%d(0:stop 1:start)\n", cmd);
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
