@@ -72,7 +72,7 @@ EXPORT_SYMBOL_GPL(tfa_codec_np);
 static ssize_t tfa98xx_state_store(struct device *dev, struct device_attribute *attr,
 		const char *buf, size_t count)
 {
-    pr_err("%s",__func__);
+	pr_debug("%s",__func__);
 
 	return 0;
 }
