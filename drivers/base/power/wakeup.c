@@ -470,8 +470,7 @@ static bool wakeup_source_blocker(struct wakeup_source *ws)
 	if (ws) {
 		wslen = strlen(ws->name);
 
-		if ((!enable_ipa_ws && !strncmp(ws->name, "IPA_WS", wslen) &&
-				ws->active) ||
+		if ((!enable_ipa_ws && !strncmp(ws->name, "IPA_WS", wslen)) ||
 			(!enable_wlan_extscan_wl_ws &&
 				!strncmp(ws->name, "wlan_extscan_wl", wslen)) ||
 			(!enable_qcom_rx_wakelock_ws &&
@@ -559,16 +558,14 @@ static void wakeup_source_activate(struct wakeup_source *ws)
  */
 static void wakeup_source_report_event(struct wakeup_source *ws)
 {
-	if (!is_display_on()) {
-		if (!wakeup_source_blocker(ws)) {
-			ws->event_count++;
-			/* This is racy, but the counter is approximate anyway. */
-			if (events_check_enabled)
-				ws->wakeup_count++;
+	if (!wakeup_source_blocker(ws)) {
+		ws->event_count++;
+		/* This is racy, but the counter is approximate anyway. */
+		if (events_check_enabled)
+			ws->wakeup_count++;
 
-			if (!ws->active)
-				wakeup_source_activate(ws);
-		}
+		if (!ws->active)
+			wakeup_source_activate(ws);
 	}
 }
 
