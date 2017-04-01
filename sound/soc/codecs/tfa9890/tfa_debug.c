@@ -12,7 +12,6 @@
  * arising from its use. (c) PLMA, NXP Semiconductors.
  */
 
-#define DEBUG
 #define pr_fmt(fmt) "%s(): " fmt, __func__
 #include <linux/cdev.h>
 #include <linux/clk.h>
