@@ -12,7 +12,6 @@
  * GNU General Public License for more details.
  */
 
-#define DEBUG
 #include <linux/cdev.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
