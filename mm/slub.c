@@ -2531,6 +2531,11 @@ redo:
 		stat(s, ALLOC_FASTPATH);
 	}
 
+	if (!(s->flags & (SLAB_DESTROY_BY_RCU | SLAB_POISON)) && !s->ctor && object) {
+		size_t offset = s->offset ? 0 : sizeof(void *);
+		BUG_ON(memchr_inv((void *)object + offset, 0, s->object_size - offset));
+	}
+
 	if (unlikely(gfpflags & __GFP_ZERO) && object)
 		memset(object, 0, s->object_size);
 
