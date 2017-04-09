@@ -4016,7 +4016,7 @@ static int tasha_codec_enable_lineout_pa(struct snd_soc_dapm_widget *w,
 					 int event)
 {
 	struct snd_soc_codec *codec = w->codec;
-	u16 lineout_vol_reg, lineout_mix_vol_reg;
+	u16 lineout_vol_reg = 0, lineout_mix_vol_reg = 0;
 	int ret = 0;
 
 	dev_dbg(codec->dev, "%s %s %d\n", __func__, w->name, event);
@@ -4037,7 +4037,9 @@ static int tasha_codec_enable_lineout_pa(struct snd_soc_dapm_widget *w,
 			lineout_vol_reg = WCD9335_CDC_RX6_RX_PATH_CTL;
 			lineout_mix_vol_reg = WCD9335_CDC_RX6_RX_PATH_MIX_CTL;
 		}
-	} else {
+	}
+
+	if (!lineout_mix_vol_reg || !lineout_vol_reg) {
 		dev_err(codec->dev, "%s: Error enabling lineout PA\n",
 			__func__);
 		return -EINVAL;
@@ -4535,6 +4537,10 @@ static int tasha_codec_spk_boost_event(struct snd_soc_dapm_widget *w,
 		boost_path_cfg1 = WCD9335_CDC_RX8_RX_PATH_CFG1;
 		reg = WCD9335_CDC_RX8_RX_PATH_CTL;
 		reg_mix = WCD9335_CDC_RX8_RX_PATH_MIX_CTL;
+	} else {
+		dev_err(codec->dev, "%s: Invalid name: %s\n",
+						__func__, w->name);
+		return -EINVAL;
 	}
 
 	switch (event) {
@@ -4556,7 +4562,7 @@ static int tasha_codec_spk_boost_event(struct snd_soc_dapm_widget *w,
 
 static u16 tasha_interp_get_primary_reg(u16 reg, u16 *ind)
 {
-	u16 prim_int_reg;
+	u16 prim_int_reg = 0;
 
 	switch (reg) {
 	case WCD9335_CDC_RX0_RX_PATH_CTL:
@@ -4604,6 +4610,8 @@ static u16 tasha_interp_get_primary_reg(u16 reg, u16 *ind)
 		prim_int_reg = WCD9335_CDC_RX8_RX_PATH_CTL;
 		*ind = 8;
 		break;
+	default: /* This should never happen */
+		pr_err("%s: Unknown reg: %u\n", __func__, reg);
 	};
 
 	return prim_int_reg;
@@ -4647,7 +4655,7 @@ static int tasha_codec_enable_prim_interpolator(
 {
 	struct tasha_priv *tasha = snd_soc_codec_get_drvdata(codec);
 	u16 prim_int_reg;
-	u16 ind;
+	u16 ind = 0;
 
 	prim_int_reg = tasha_interp_get_primary_reg(reg, &ind);
 
@@ -4754,6 +4762,9 @@ static int tasha_codec_enable_spline_src(struct snd_soc_codec *codec,
 		rx_path_ctl_reg = WCD9335_CDC_RX6_RX_PATH_CTL;
 		spl_src = SPLINE_SRC3;
 		break;
+	default:
+		pr_err("%s: Invalid src_num: %d\n", __func__, src_num);
+		return -EINVAL;
 	};
 
 	src_users = &tasha->spl_src_users[spl_src];
@@ -5971,6 +5982,9 @@ static int tasha_codec_force_enable_micbias(struct snd_soc_dapm_widget *w,
 		ret = __tasha_codec_enable_micbias(w, SND_SOC_DAPM_POST_PMD);
 		wcd_resmgr_disable_master_bias(tasha->resmgr);
 		break;
+	default:
+		pr_err("%s: Invalid event: %d\n", __func__, event);
+		ret = -EINVAL;
 	}
 
 	return ret;
@@ -8079,6 +8093,11 @@ static int tasha_codec_vbat_enable_event(struct snd_soc_dapm_widget *w,
 		vbat_path_cfg = WCD9335_CDC_RX6_RX_PATH_CFG1;
 	else if (!strcmp(w->name, "RX INT5 VBAT"))
 		vbat_path_cfg = WCD9335_CDC_RX5_RX_PATH_CFG1;
+	else {
+		dev_err(codec->dev, "%s: Invalid name: %s\n",
+				__func__, w->name);
+		return -EINVAL;
+	}
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
@@ -8437,6 +8456,11 @@ static int tasha_int_dem_inp_mux_put(struct snd_kcontrol *kcontrol,
 		look_ahead_dly_reg = WCD9335_CDC_RX1_RX_PATH_CFG0;
 	else if (e->reg == WCD9335_CDC_RX2_RX_PATH_SEC0)
 		look_ahead_dly_reg = WCD9335_CDC_RX2_RX_PATH_CFG0;
+	else {
+		dev_err(codec->dev, "%s: Invalid reg: 0x%x\n",
+						__func__, e->reg);
+		return -EINVAL;
+	}
 
 	/* Set Look Ahead Delay */
 	snd_soc_update_bits(codec, look_ahead_dly_reg,
@@ -10908,9 +10932,9 @@ static int tasha_set_decimator_rate(struct snd_soc_dai *dai,
 	struct wcd9xxx_ch *ch;
 	struct tasha_priv *tasha = snd_soc_codec_get_drvdata(codec);
 	u32 tx_port;
-	u8 shift, shift_val, tx_mux_sel;
+	u8 shift = 0, shift_val = 0, tx_mux_sel;
 	int decimator = -1;
-	u16 tx_port_reg, tx_fs_reg;
+	u16 tx_port_reg = 0, tx_fs_reg;
 
 	list_for_each_entry(ch, &tasha->dai[dai->id].wcd9xxx_ch_list, list) {
 		tx_port = ch->port;
@@ -11814,7 +11838,7 @@ static ssize_t tasha_codec_version_read(struct snd_info_entry *entry,
 	struct tasha_priv *tasha;
 	struct wcd9xxx *wcd9xxx;
 	char buffer[TASHA_VERSION_ENTRY_SIZE];
-	int len;
+	int len = 0;
 
 	tasha = (struct tasha_priv *) entry->private_data;
 	if (!tasha) {

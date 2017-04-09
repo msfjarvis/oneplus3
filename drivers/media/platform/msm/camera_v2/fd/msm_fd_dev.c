@@ -339,8 +339,10 @@ static int msm_fd_vbif_error_handler(void *handle, uint32_t error)
 	struct msm_fd_buffer *active_buf;
 	int ret;
 
-	if (handle == NULL)
+	if (NULL == handle) {
+		pr_err("FD Ctx is null, Cannot recover\n");
 		return 0;
+	}
 
 	ctx = (struct fd_ctx *)handle;
 	fd = (struct msm_fd_device *)ctx->fd_device;

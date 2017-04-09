@@ -752,7 +752,7 @@ static long qbt1000_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 {
 	int rc = 0;
 	void __user *priv_arg = (void __user *)arg;
-	struct qbt1000_drvdata *drvdata;
+	struct qbt1000_drvdata *drvdata = file->private_data;
 
 	drvdata = file->private_data;
 
