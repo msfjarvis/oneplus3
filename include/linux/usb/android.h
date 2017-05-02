@@ -42,6 +42,7 @@ enum android_function_index {
 	ANDROID_AUDIO_SRC,
 	ANDROID_CHARGER,
 	ANDROID_MIDI,
+	ANDROID_HID,
 	ANDROID_RNDIS_GSI,
 	ANDROID_ECM_GSI,
 	ANDROID_RMNET_GSI,
@@ -100,6 +101,8 @@ static enum android_function_index name_to_func_idx(const char *name)
 		return ANDROID_AUDIO_SRC;
 	if (!strncasecmp("MIDI", name, FUNC_NAME_LEN))
 		return ANDROID_MIDI;
+	if (!strncasecmp("HID", name, FUNC_NAME_LEN))
+		return ANDROID_HID;
 	if (!strncasecmp("RNDIS_GSI", name, FUNC_NAME_LEN))
 		return ANDROID_RNDIS_GSI;
 	if (!strncasecmp("ECM_GSI", name, FUNC_NAME_LEN))
