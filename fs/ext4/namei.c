@@ -1133,12 +1133,11 @@ errout:
 static inline int search_dirblock(struct buffer_head *bh,
 				  struct inode *dir,
 				  struct ext4_filename *fname,
-				  const struct qstr *d_name,
 				  unsigned int offset,
 				  struct ext4_dir_entry_2 **res_dir)
 {
 	return ext4_search_dir(bh, bh->b_data, dir->i_sb->s_blocksize, dir,
-			       fname, d_name, offset, res_dir);
+			       fname, offset, res_dir);
 }
 
 /*
@@ -1253,7 +1252,6 @@ static inline int ext4_match(struct ext4_filename *fname,
  */
 int ext4_search_dir(struct buffer_head *bh, char *search_buf, int buf_size,
 		    struct inode *dir, struct ext4_filename *fname,
-		    const struct qstr *d_name,
 		    unsigned int offset, struct ext4_dir_entry_2 **res_dir)
 {
 	struct ext4_dir_entry_2 * de;
@@ -1361,7 +1359,7 @@ static struct buffer_head * ext4_find_entry (struct inode *dir,
 
 	if (ext4_has_inline_data(dir)) {
 		int has_inline_data = 1;
-		ret = ext4_find_inline_entry(dir, &fname, d_name, res_dir,
+		ret = ext4_find_inline_entry(dir, &fname, res_dir,
 					     &has_inline_data);
 		if (has_inline_data) {
 			if (inlined)
@@ -1452,7 +1450,7 @@ restart:
 			goto next;
 		}
 		set_buffer_verified(bh);
-		i = search_dirblock(bh, dir, &fname, d_name,
+		i = search_dirblock(bh, dir, &fname,
 			    block << EXT4_BLOCK_SIZE_BITS(sb), res_dir);
 		if (i == 1) {
 			EXT4_I(dir)->i_dir_start_lookup = block;
@@ -1493,7 +1491,6 @@ static struct buffer_head * ext4_dx_find_entry(struct inode *dir,
 {
 	struct super_block * sb = dir->i_sb;
 	struct dx_frame frames[2], *frame;
-	const struct qstr *d_name = fname->usr_fname;
 	struct buffer_head *bh;
 	ext4_lblk_t block;
 	int retval;
@@ -1510,7 +1507,7 @@ static struct buffer_head * ext4_dx_find_entry(struct inode *dir,
 		if (IS_ERR(bh))
 			goto errout;
 
-		retval = search_dirblock(bh, dir, fname, d_name,
+		retval = search_dirblock(bh, dir, fname,
 					 block << EXT4_BLOCK_SIZE_BITS(sb),
 					 res_dir);
 		if (retval == 1)
@@ -1535,7 +1532,7 @@ static struct buffer_head * ext4_dx_find_entry(struct inode *dir,
 
 	bh = NULL;
 errout:
-	dxtrace(printk(KERN_DEBUG "%s not found\n", d_name->name));
+	dxtrace(printk(KERN_DEBUG "%s not found\n", fname->usr_fname->name));
 success:
 	dx_release(frames);
 	return bh;
