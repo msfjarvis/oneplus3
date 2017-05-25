@@ -276,17 +276,12 @@ config CPU_BOOST
 config CPU_FREQ_GOV_BLU_ACTIVE
 	tristate "'blu_active' cpufreq policy governor"
 	help
-	  'blu_active' - This driver adds a dynamic cpufreq policy governor
-	  designed for latency-sensitive workloads.
+	  Boosts available CPUs to max frequency on fingerprint sensor input.
 
-	  This governor attempts to reduce the latency of clock
-	  increases so that the system is more responsive to
-	  interactive workloads.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called cpufreq_blu_active.
-
-	  If in doubt, say N.
+config MSM_TRACK_FREQ_TARGET_INDEX
+	bool "Track cpufreq frequency index"
+	default y
+	depends on CPU_FREQ && ARCH_MSM
 
 menu "x86 CPU frequency scaling drivers"
 depends on X86
