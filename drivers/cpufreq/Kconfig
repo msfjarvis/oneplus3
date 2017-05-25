@@ -269,6 +269,11 @@ config FINGERPRINT_BOOST
 	help
 	  Boosts available CPUs to max frequency on fingerprint sensor input.
 
+config MSM_TRACK_FREQ_TARGET_INDEX
+	bool "Track cpufreq frequency index"
+	default y
+	depends on CPU_FREQ && ARCH_MSM
+
 menu "x86 CPU frequency scaling drivers"
 depends on X86
 source "drivers/cpufreq/Kconfig.x86"
