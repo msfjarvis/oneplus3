@@ -1241,6 +1241,10 @@ static ssize_t store_io_is_busy(struct cpufreq_interactive_tunables *tunables,
 	ret = kstrtoul(buf, 0, &val);
 	if (ret < 0)
 		return ret;
+
+	/* Prevent ROM to set 1 here */
+	if (val == 1)
+		val = 0;
 	tunables->io_is_busy = val;
 
 	if (!tunables->use_sched_load)

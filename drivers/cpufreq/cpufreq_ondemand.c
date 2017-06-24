@@ -322,7 +322,8 @@ static ssize_t store_io_is_busy(struct dbs_data *dbs_data, const char *buf,
 	ret = sscanf(buf, "%u", &input);
 	if (ret != 1)
 		return -EINVAL;
-	od_tuners->io_is_busy = !!input;
+	/* od_tuners->io_is_busy = !!input; */
+	od_tuners->io_is_busy = 0;
 
 	/* we need to re-evaluate prev_cpu_idle */
 	for_each_online_cpu(j) {
