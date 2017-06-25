@@ -75,7 +75,11 @@
 #define CHG_SOFT_UVP_MV               4300
 #define CHG_VOLTAGE_NORMAL            5000
 #define BATT_SOFT_OVP_MV              4500
+#ifdef CONFIG_FORCE_FAST_CHARGE
+#define DWC3_HVDCP_CHG_MAX            2500
+#else
 #define DWC3_HVDCP_CHG_MAX            1800
+#endif
 #define CHG_TIMEOUT_COUNT             10 * 10 * 60 /* 10hr */
 
 static int charger_type;
@@ -558,7 +562,11 @@ module_param_named(
 	int, S_IRUSR | S_IWUSR
 );
 
+#ifdef CONFIG_FORCE_FAST_CHARGE
+static int smbchg_default_hvdcp_icl_ma = 2500;
+#else
 static int smbchg_default_hvdcp_icl_ma = 1800;
+#endif
 module_param_named(
 	default_hvdcp_icl_ma, smbchg_default_hvdcp_icl_ma,
 	int, S_IRUSR | S_IWUSR
@@ -570,7 +578,11 @@ module_param_named(
 	int, S_IRUSR | S_IWUSR
 );
 
+#ifdef CONFIG_FORCE_FAST_CHARGE
+static int smbchg_default_dcp_icl_ma = 2500;
+#else
 static int smbchg_default_dcp_icl_ma = 1800;
+#endif
 module_param_named(
 	default_dcp_icl_ma, smbchg_default_dcp_icl_ma,
 	int, S_IRUSR | S_IWUSR
@@ -1542,6 +1554,8 @@ static int dc_ilim_ma_table_8996[] = {
 	2200,
 	2300,
 	2400,
+	2500,
+	2600,
 };
 
 static const int fcc_comp_table_8994[] = {
@@ -1556,6 +1570,11 @@ static const int fcc_comp_table_8996[] = {
 	1100,
 	1200,
 	1500,
+	1600,
+	1800,
+	2000,
+	2500,
+	2600,
 };
 
 static const int aicl_rerun_period[] = {
