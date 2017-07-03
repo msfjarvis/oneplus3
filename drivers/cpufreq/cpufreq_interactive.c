@@ -84,10 +84,11 @@ static struct mutex sched_lock;
 static cpumask_t controlled_cpus;
 
 /* Target load.  Lower values result in higher CPU speeds. */
-#define DEFAULT_TARGET_LOAD 90
+#define DEFAULT_TARGET_LOAD 80
 static unsigned int default_target_loads[] = {DEFAULT_TARGET_LOAD};
 
 #define DEFAULT_TIMER_RATE (20 * USEC_PER_MSEC)
+#define SCREEN_OFF_TIMER_RATE (20 * USEC_PER_MSEC)
 #define DEFAULT_ABOVE_HISPEED_DELAY DEFAULT_TIMER_RATE
 static unsigned int default_above_hispeed_delay[] = {
 	DEFAULT_ABOVE_HISPEED_DELAY };
@@ -97,7 +98,7 @@ struct cpufreq_interactive_tunables {
 	/* Hi speed to bump to from lo speed when load burst (default max) */
 	unsigned int hispeed_freq;
 	/* Go to hi speed when CPU load at or above this value. */
-#define DEFAULT_GO_HISPEED_LOAD 99
+#define DEFAULT_GO_HISPEED_LOAD 80
 	unsigned long go_hispeed_load;
 	/* Target load. Lower values result in higher CPU speeds. */
 	spinlock_t target_loads_lock;
@@ -109,6 +110,7 @@ struct cpufreq_interactive_tunables {
 	 */
 #define DEFAULT_MIN_SAMPLE_TIME (80 * USEC_PER_MSEC)
 	unsigned long min_sample_time;
+#define DEFAULT_BOOSTPULSE_DURATION (99 * USEC_PER_MSEC)
 	/*
 	 * The sample rate of the timer used to increase frequency
 	 */
@@ -955,8 +957,12 @@ static ssize_t store_target_loads(
 	const char *buf, size_t count)
 {
 	int ntokens;
+	int perfd_pid = strcmp(current->comm, "perfd");
 	unsigned int *new_target_loads = NULL;
 	unsigned long flags;
+
+	if (perfd_pid == 0)
+		return 0;
 
 	new_target_loads = get_tokenized_data(buf, &ntokens);
 	if (IS_ERR(new_target_loads))
@@ -998,8 +1004,12 @@ static ssize_t store_above_hispeed_delay(
 	const char *buf, size_t count)
 {
 	int ntokens;
+	int perfd_pid = strcmp(current->comm, "perfd");
 	unsigned int *new_above_hispeed_delay = NULL;
 	unsigned long flags;
+
+	if (perfd_pid == 0)
+		return 0;
 
 	new_above_hispeed_delay = get_tokenized_data(buf, &ntokens);
 	if (IS_ERR(new_above_hispeed_delay))
@@ -1025,7 +1035,11 @@ static ssize_t store_hispeed_freq(struct cpufreq_interactive_tunables *tunables,
 		const char *buf, size_t count)
 {
 	int ret;
+	int perfd_pid = strcmp(current->comm, "perfd");
 	long unsigned int val;
+
+	if (perfd_pid == 0)
+		return 0;
 
 	ret = kstrtoul(buf, 0, &val);
 	if (ret < 0)
@@ -1069,7 +1083,11 @@ static ssize_t store_go_hispeed_load(struct cpufreq_interactive_tunables
 		*tunables, const char *buf, size_t count)
 {
 	int ret;
+	int perfd_pid = strcmp(current->comm, "perfd");
 	unsigned long val;
+
+	if (perfd_pid == 0)
+		return 0;
 
 	ret = kstrtoul(buf, 0, &val);
 	if (ret < 0)
@@ -1088,7 +1106,11 @@ static ssize_t store_min_sample_time(struct cpufreq_interactive_tunables
 		*tunables, const char *buf, size_t count)
 {
 	int ret;
+	int perfd_pid = strcmp(current->comm, "perfd");
 	unsigned long val;
+
+	if (perfd_pid == 0)
+		return 0;
 
 	ret = kstrtoul(buf, 0, &val);
 	if (ret < 0)
@@ -1132,6 +1154,36 @@ static ssize_t store_timer_rate(struct cpufreq_interactive_tunables *tunables,
 			t->timer_rate = val_round;
 	}
 	set_window_helper(tunables);
+
+	return count;
+}
+
+static ssize_t show_sleep_timer_rate(struct cpufreq_interactive_tunables
+		*tunables, char *buf)
+{
+	return sprintf(buf, "%lu\n", tunables->sleep_timer_rate);
+}
+
+static ssize_t store_sleep_timer_rate(struct cpufreq_interactive_tunables
+		*tunables, const char *buf, size_t count)
+{
+	int ret;
+	unsigned long val, val_round;
+
+	ret = kstrtoul(buf, 0, &val);
+	if (ret < 0)
+		return ret;
+
+	val_round = jiffies_to_usecs(usecs_to_jiffies(val));
+
+	if (val_round == tunables->sleep_timer_rate)
+		return count;
+
+	if (val != val_round)
+		pr_warn("sleep_timer_rate not aligned to jiffy. Rounded up to %lu\n",
+			val_round);
+
+	tunables->sleep_timer_rate = val_round;
 
 	return count;
 }
@@ -1579,7 +1631,9 @@ static struct cpufreq_interactive_tunables *alloc_tunable(
 	tunables->ntarget_loads = ARRAY_SIZE(default_target_loads);
 	tunables->min_sample_time = DEFAULT_MIN_SAMPLE_TIME;
 	tunables->timer_rate = DEFAULT_TIMER_RATE;
-	tunables->boostpulse_duration_val = DEFAULT_MIN_SAMPLE_TIME;
+	tunables->prev_timer_rate = DEFAULT_TIMER_RATE;
+	tunables->sleep_timer_rate = SCREEN_OFF_TIMER_RATE;
+	tunables->boostpulse_duration_val = DEFAULT_BOOSTPULSE_DURATION;
 	tunables->timer_slack_val = DEFAULT_TIMER_SLACK;
 
 	spin_lock_init(&tunables->target_loads_lock);
@@ -1693,6 +1747,10 @@ static int cpufreq_governor_interactive(struct cpufreq_policy *policy,
 		}
 
 		tunables->usage_count = 1;
+#ifdef CONFIG_ARCH_MSM8996
+		tunables->hispeed_freq = 1286400;
+		tunables->max_freq_hysteresis = 99000;
+#endif
 		policy->governor_data = tunables;
 		if (!have_governor_per_policy()) {
 			common_tunables = tunables;
