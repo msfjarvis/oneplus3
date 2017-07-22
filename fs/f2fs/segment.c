@@ -1277,6 +1277,8 @@ static int issue_discard_thread(void *data)
 
 		sb_end_intwrite(sbi->sb);
 
+		congestion_wait(BLK_RW_SYNC, HZ/50);
+
 	} while (!kthread_should_stop());
 	return 0;
 }
