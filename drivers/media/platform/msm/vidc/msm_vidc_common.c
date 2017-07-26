@@ -3665,7 +3665,7 @@ int msm_comm_qbuf(struct msm_vidc_inst *inst, struct vb2_buffer *vb)
 		struct vidc_frame_data *data;
 		int count;
 	} etbs, ftbs;
-	bool defer = false, batch_mode;
+	bool defer = false, batch_mode, change_defer;
 	struct vb2_buf_entry *temp, *next;
 
 	if (!inst) {
@@ -3710,17 +3710,26 @@ int msm_comm_qbuf(struct msm_vidc_inst *inst, struct vb2_buffer *vb)
 	 * Don't queue if:
 	 * 1) Hardware isn't ready (that's simple)
 	 */
-	defer = defer ?: inst->state != MSM_VIDC_START_DONE;
+        change_defer = inst->state != MSM_VIDC_START_DONE;
+	if (defer) {
+		defer = change_defer;
+	}
 
 	/*
 	 * 2) The client explicitly tells us not to because it wants this
 	 * buffer to be batched with future frames.  The batch size (on both
 	 * capabilities) is completely determined by the client.
 	 */
-	defer = defer ?: vb && vb->v4l2_buf.flags & V4L2_MSM_BUF_FLAG_DEFER;
+        change_defer = vb && vb->v4l2_buf.flags & V4L2_MSM_BUF_FLAG_DEFER;
+	if (defer) {
+		defer = change_defer;
+	}
 
 	/* 3) If we're in batch mode, we must have full batches of both types */
-	defer = defer ?: batch_mode && (!output_count || !capture_count);
+        change_defer = batch_mode && (!output_count || !capture_count);
+	if (defer) {
+		defer = change_defer;
+	}
 
 	if (defer) {
 		dprintk(VIDC_DBG, "Deferring queue of %pK\n", vb);

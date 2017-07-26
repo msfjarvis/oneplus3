@@ -2351,10 +2351,11 @@ retry:
 			uint32_t cmd;
 
 			death = container_of(w, struct binder_ref_death, work);
-			if (w->type == BINDER_WORK_CLEAR_DEATH_NOTIFICATION)
+			if (w->type == BINDER_WORK_CLEAR_DEATH_NOTIFICATION) {
 				cmd = BR_CLEAR_DEATH_NOTIFICATION_DONE;
-			else
+			} else {
 				cmd = BR_DEAD_BINDER;
+			}
 			if (put_user(cmd, (uint32_t __user *)ptr))
 				return -EFAULT;
 			ptr += sizeof(uint32_t);
