@@ -111,7 +111,7 @@ void limUpdateAssocStaDatas(tpAniSirGlobal pMac, tpDphHashNode pStaDs, tpSirAsso
                            pAssocRsp->HTInfo.recommendedTxWidthSet :
                            pAssocRsp->HTCaps.supportedChannelWidthSet);
                }
-               else
+               else {
                    pStaDs->htSupportedChannelWidthSet = eHT_CHANNEL_WIDTH_20MHZ;
 
                    pStaDs->htLsigTXOPProtection = ( tANI_U8 ) pAssocRsp->HTCaps.lsigTXOPProtection;
@@ -130,6 +130,7 @@ void limUpdateAssocStaDatas(tpAniSirGlobal pMac, tpDphHashNode pStaDs, tpSirAsso
                    // For now, it is IMMEDIATE BA only on ALL TID's
                    pStaDs->baPolicyFlag = 0xFF;
 
+               }
                    /*
                     * Check if we have support for gShortGI20Mhz and
                     * gShortGI40Mhz from ini file.
