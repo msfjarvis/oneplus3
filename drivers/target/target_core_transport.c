@@ -604,9 +604,10 @@ static void transport_lun_remove_cmd(struct se_cmd *cmd)
 		percpu_ref_put(&lun->lun_ref);
 }
 
-void transport_cmd_finish_abort(struct se_cmd *cmd, int remove)
+int transport_cmd_finish_abort(struct se_cmd *cmd, int remove)
 {
 	bool ack_kref = (cmd->se_cmd_flags & SCF_ACK_KREF);
+	int ret = 0;
 
 	if (cmd->se_cmd_flags & SCF_SE_LUN_CMD)
 		transport_lun_remove_cmd(cmd);
@@ -618,9 +619,11 @@ void transport_cmd_finish_abort(struct se_cmd *cmd, int remove)
 		cmd->se_tfo->aborted_task(cmd);
 
 	if (transport_cmd_check_stop_to_fabric(cmd))
-		return;
+		return 1;
 	if (remove && ack_kref)
-		transport_put_cmd(cmd);
+		ret = transport_put_cmd(cmd);
+
+	return ret;
 }
 
 static void target_complete_failure_work(struct work_struct *work)
@@ -2451,15 +2454,9 @@ static void target_release_cmd_kref(struct kref *kref)
 	struct se_session *se_sess = se_cmd->se_sess;
 	bool fabric_stop;
 
-	if (list_empty(&se_cmd->se_cmd_list)) {
-		spin_unlock(&se_sess->sess_cmd_lock);
-		target_free_cmd_mem(se_cmd);
-		se_cmd->se_tfo->release_cmd(se_cmd);
-		return;
-	}
-
 	spin_lock(&se_cmd->t_state_lock);
-	fabric_stop = (se_cmd->transport_state & CMD_T_FABRIC_STOP);
+	fabric_stop = (se_cmd->transport_state & CMD_T_FABRIC_STOP) &&
+		      (se_cmd->transport_state & CMD_T_ABORTED);
 	spin_unlock(&se_cmd->t_state_lock);
 
 	if (se_cmd->cmd_wait_set || fabric_stop) {
