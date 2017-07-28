@@ -34,78 +34,10 @@ struct kcal_lut_data {
 	int blue;
 	int minimum;
 	int enable;
-	int invert;
 	int sat;
 	int hue;
 	int val;
 	int cont;
-};
-
-static uint32_t igc_Table_Inverted[IGC_LUT_ENTRIES] = {
-	267390960, 266342368, 265293776, 264245184,
-	263196592, 262148000, 261099408, 260050816,
-	259002224, 257953632, 256905040, 255856448,
-	254807856, 253759264, 252710672, 251662080,
-	250613488, 249564896, 248516304, 247467712,
-	246419120, 245370528, 244321936, 243273344,
-	242224752, 241176160, 240127568, 239078976,
-	238030384, 236981792, 235933200, 234884608,
-	233836016, 232787424, 231738832, 230690240,
-	229641648, 228593056, 227544464, 226495872,
-	225447280, 224398688, 223350096, 222301504,
-	221252912, 220204320, 219155728, 218107136,
-	217058544, 216009952, 214961360, 213912768,
-	212864176, 211815584, 210766992, 209718400,
-	208669808, 207621216, 206572624, 205524032,
-	204475440, 203426848, 202378256, 201329664,
-	200281072, 199232480, 198183888, 197135296,
-	196086704, 195038112, 193989520, 192940928,
-	191892336, 190843744, 189795152, 188746560,
-	187697968, 186649376, 185600784, 184552192,
-	183503600, 182455008, 181406416, 180357824,
-	179309232, 178260640, 177212048, 176163456,
-	175114864, 174066272, 173017680, 171969088,
-	170920496, 169871904, 168823312, 167774720,
-	166726128, 165677536, 164628944, 163580352,
-	162531760, 161483168, 160434576, 159385984,
-	158337392, 157288800, 156240208, 155191616,
-	154143024, 153094432, 152045840, 150997248,
-	149948656, 148900064, 147851472, 146802880,
-	145754288, 144705696, 143657104, 142608512,
-	141559920, 140511328, 139462736, 138414144,
-	137365552, 136316960, 135268368, 134219776,
-	133171184, 132122592, 131074000, 130025408,
-	128976816, 127928224, 126879632, 125831040,
-	124782448, 123733856, 122685264, 121636672,
-	120588080, 119539488, 118490896, 117442304,
-	116393712, 115345120, 114296528, 113247936,
-	112199344, 111150752, 110102160, 109053568,
-	108004976, 106956384, 105907792, 104859200,
-	103810608, 102762016, 101713424, 100664832,
-	99616240, 98567648, 97519056, 96470464,
-	95421872, 94373280, 93324688, 92276096,
-	91227504, 90178912, 89130320, 88081728,
-	87033136, 85984544, 84935952, 83887360,
-	82838768, 81790176, 80741584, 79692992,
-	78644400, 77595808, 76547216, 75498624,
-	74450032, 73401440, 72352848, 71304256,
-	70255664, 69207072, 68158480, 67109888,
-	66061296, 65012704, 63964112, 62915520,
-	61866928, 60818336, 59769744, 58721152,
-	57672560, 56623968, 55575376, 54526784,
-	53478192, 52429600, 51381008, 50332416,
-	49283824, 48235232, 47186640, 46138048,
-	45089456, 44040864, 42992272, 41943680,
-	40895088, 39846496, 38797904, 37749312,
-	36700720, 35652128, 34603536, 33554944,
-	32506352, 31457760, 30409168, 29360576,
-	28311984, 27263392, 26214800, 25166208,
-	24117616, 23069024, 22020432, 20971840,
-	19923248, 18874656, 17826064, 16777472,
-	15728880, 14680288, 13631696, 12583104,
-	11534512, 10485920, 9437328, 8388736,
-	7340144, 6291552, 5242960, 4194368,
-	3145776, 2097184, 1048592, 0
 };
 
 static uint32_t igc_Table_RGB[IGC_LUT_ENTRIES] = {
@@ -294,16 +226,14 @@ static void mdss_mdp_kcal_update_igc(struct kcal_lut_data *lut_data)
 
 	igc_config.version = mdp_igc_v1_7;
 	igc_config.block = MDP_LOGICAL_BLOCK_DISP_0;
-	igc_config.ops = lut_data->invert && lut_data->enable ?
+	igc_config.ops = lut_data->enable ?
 		MDP_PP_OPS_WRITE | MDP_PP_OPS_ENABLE :
 			MDP_PP_OPS_WRITE | MDP_PP_OPS_DISABLE;
 	igc_config.len = IGC_LUT_ENTRIES;
-	igc_config.c0_c1_data = &igc_Table_Inverted[0];
 	igc_config.c2_data = &igc_Table_RGB[0];
 
 	payload = kzalloc(sizeof(struct mdp_igc_lut_data_v1_7),GFP_USER);
 	payload->len = IGC_LUT_ENTRIES;
-	payload->c0_c1_data = &igc_Table_Inverted[0];
 	payload->c2_data = &igc_Table_RGB[0];
 
 	igc_config.cfg_payload = payload;
@@ -395,34 +325,6 @@ static ssize_t kcal_enable_show(struct device *dev,
 	struct kcal_lut_data *lut_data = dev_get_drvdata(dev);
 
 	return scnprintf(buf, PAGE_SIZE, "%d\n", lut_data->enable);
-}
-
-static ssize_t kcal_invert_store(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t count)
-{
-	int kcal_invert, r;
-	struct kcal_lut_data *lut_data = dev_get_drvdata(dev);
-
-	r = kstrtoint(buf, 10, &kcal_invert);
-	if ((r) || (kcal_invert != 0 && kcal_invert != 1) ||
-		(lut_data->invert == kcal_invert))
-		return -EINVAL;
-
-	//disable
-	lut_data->invert = 0;
-
-	//mdss_mdp_kcal_update_igc(lut_data);
-	//mdss_mdp_kcal_display_commit();
-
-	return count;
-}
-
-static ssize_t kcal_invert_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-	struct kcal_lut_data *lut_data = dev_get_drvdata(dev);
-
-	return scnprintf(buf, PAGE_SIZE, "%d\n", lut_data->invert);
 }
 
 static ssize_t kcal_sat_store(struct device *dev,
@@ -533,8 +435,8 @@ static DEVICE_ATTR(kcal, S_IWUSR | S_IRUGO, kcal_show, kcal_store);
 static DEVICE_ATTR(kcal_min, S_IWUSR | S_IRUGO, kcal_min_show, kcal_min_store);
 static DEVICE_ATTR(kcal_enable, S_IWUSR | S_IRUGO, kcal_enable_show,
 	kcal_enable_store);
-static DEVICE_ATTR(kcal_invert, S_IWUSR | S_IRUGO, kcal_invert_show,
-	kcal_invert_store);
+//static DEVICE_ATTR(kcal_invert, S_IWUSR | S_IRUGO, kcal_invert_show,
+//	kcal_invert_store);
 static DEVICE_ATTR(kcal_sat, S_IWUSR | S_IRUGO, kcal_sat_show, kcal_sat_store);
 static DEVICE_ATTR(kcal_hue, S_IWUSR | S_IRUGO, kcal_hue_show, kcal_hue_store);
 static DEVICE_ATTR(kcal_val, S_IWUSR | S_IRUGO, kcal_val_show, kcal_val_store);
@@ -560,7 +462,6 @@ static int kcal_ctrl_probe(struct platform_device *pdev)
 	lut_data->green = DEF_PCC;
 	lut_data->blue = DEF_PCC;
 	lut_data->minimum = 0x23;
-	lut_data->invert = 0x0;
 	lut_data->hue = 0x0;
 	lut_data->sat = DEF_PA;
 	lut_data->val = DEF_PA;
@@ -574,7 +475,6 @@ static int kcal_ctrl_probe(struct platform_device *pdev)
 	ret = device_create_file(&pdev->dev, &dev_attr_kcal);
 	ret |= device_create_file(&pdev->dev, &dev_attr_kcal_min);
 	ret |= device_create_file(&pdev->dev, &dev_attr_kcal_enable);
-	ret |= device_create_file(&pdev->dev, &dev_attr_kcal_invert);
 	ret |= device_create_file(&pdev->dev, &dev_attr_kcal_sat);
 	ret |= device_create_file(&pdev->dev, &dev_attr_kcal_hue);
 	ret |= device_create_file(&pdev->dev, &dev_attr_kcal_val);
@@ -592,7 +492,6 @@ static int kcal_ctrl_remove(struct platform_device *pdev)
 	device_remove_file(&pdev->dev, &dev_attr_kcal);
 	device_remove_file(&pdev->dev, &dev_attr_kcal_min);
 	device_remove_file(&pdev->dev, &dev_attr_kcal_enable);
-	device_remove_file(&pdev->dev, &dev_attr_kcal_invert);
 	device_remove_file(&pdev->dev, &dev_attr_kcal_sat);
 	device_remove_file(&pdev->dev, &dev_attr_kcal_hue);
 	device_remove_file(&pdev->dev, &dev_attr_kcal_val);
