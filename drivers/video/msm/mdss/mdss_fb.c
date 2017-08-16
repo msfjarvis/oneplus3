@@ -83,6 +83,12 @@
 bool backlight_dimmer = false;
 module_param(backlight_dimmer, bool, 0755);
 
+int backlight_min = 0;
+int backlight_max = 255;
+
+module_param(backlight_min, int, 0755);
+module_param(backlight_max, int, 0755);
+
 static struct fb_info *fbi_list[MAX_FBI_LIST];
 static int fbi_list_index;
 
@@ -278,6 +284,16 @@ static void mdss_fb_set_bl_brightness(struct led_classdev *led_cdev,
 
 	if (value > mfd->panel_info->brightness_max)
 		value = mfd->panel_info->brightness_max;
+
+	// Boeffla: apply min/max limits for LCD backlight (0 is exception for display off)
+	if (value != 0)
+	{
+		if (value < backlight_min)
+			value = backlight_min;
+
+		if (value > backlight_max)
+			value = backlight_max;
+	}
 
 	if (backlight_dimmer) {
 		MDSS_BRIGHT_TO_BL_DIM(bl_lvl, value);
