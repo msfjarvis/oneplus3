@@ -525,6 +525,7 @@ asmlinkage __visible void __init start_kernel(void)
 	page_address_init();
 	pr_notice("%s", linux_banner);
 	setup_arch(&command_line);
+	add_device_randomness(command_line, strlen(command_line));
 	/*
 	 * Set up the the initial canary ASAP:
 	 */
