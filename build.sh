@@ -35,21 +35,22 @@ WORKING_DIR=$(pwd)
 ANYKERNEL_DIR="${WORKING_DIR}/AnyKernel2"
 TOOLCHAIN_DIR="${WORKING_DIR}/../../toolchains/aarch64-linux-gnu/"
 REPACK_DIR="${ANYKERNEL_DIR}"
-ZIP_MOVE="${WORKING_DIR}/out/"
-KERNEL_DIR="${WORKING_DIR}/arch/arm64/boot"
+OUT_DIR="${WORKING_DIR}/out/"
+ZIP_MOVE="${WORKING_DIR}/zips/"
+MAKE="make O=${OUT_DIR}"
 
 # Functions
 function make_kernel() {
-  [ "${CLEAN}" ] && make clean
-  make "${DEFCONFIG}" "${THREAD}"
-  [ "${REGEN_DEFCONFIG}" ] && cp .config arch/"${ARCH}"/configs/"${DEFCONFIG}" && exit 1
+  [ "${CLEAN}" ] && ${MAKE} clean && ${MAKE} mrproper
+  ${MAKE} "${DEFCONFIG}" "${THREAD}"
+  [ "${REGEN_DEFCONFIG}" ] && cp "${OUT_DIR}".config arch/"${ARCH}"/configs/"${DEFCONFIG}" && exit 1
   if [ "${MODULE}" ]; then
-      make "${MODULE}" "${THREAD}"
+      ${MAKE} "${MODULE}" "${THREAD}"
   else
-      rm arch/arm64/boot/Image.gz-dtb 2>/dev/null
-      make "${KERNEL}" "${THREAD}"
+      ${MAKE} "${KERNEL}" "${THREAD}"
   fi
-  [ -f "${KERNEL_DIR}/${KERNEL}" ] && cp -vr "${KERNEL_DIR}/${KERNEL}" "${REPACK_DIR}" || return 1
+  BUILT_KERNEL="out/arch/${ARCH}/boot/${KERNEL}"
+  [ -f "${BUILT_KERNEL}" ] && cp -vr "${BUILT_KERNEL}" "${REPACK_DIR}" && return 0 || return 1
 }
 
 function make_zip() {
