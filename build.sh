@@ -61,30 +61,16 @@ function make_zip() {
   cd "${WORKING_DIR}"
 }
 
-function tg() {
-  curl -F chat_id="$TG_BETA_CHANNEL_ID" -F document="@$1" "https://api.telegram.org/bot$TG_BOT_ID/sendDocument"
-  echo ""
-}
-
-function upload_to_tg() {
-    echo -e "${cyan} Uploading file to Telegram ${restore}"
-    tg "${ZIP_MOVE}/${FINAL_VER}.zip"
-}
-
 function push_and_flash() {
   adb push "${ZIP_MOVE}"/${FINAL_VER}.zip /sdcard/Caesium/
   adb shell twrp install "/sdcard//Caesium/${FINAL_VER}.zip"
 }
 
-while getopts ":ctbfrm:" opt; do
+while getopts ":cbfrsm:" opt; do
   case $opt in
     c)
       echo -e "${cyan} Building clean ${restore}" >&2
       CLEAN=true
-      ;;
-    t)
-      echo -e "${cyan} Will upload build to Telegram! ${restore}" >&2
-      TG_UPLOAD=true
       ;;
     b)
       echo -e "${cyan} Building ZIP only ${restore}" >&2
@@ -97,6 +83,10 @@ while getopts ":ctbfrm:" opt; do
     r)
       echo -e "${cyan} Regenerating defconfig ${restore}" >&2
       REGEN_DEFCONFIG=true
+      ;;
+    s)
+      echo -e "${cyan} Suppressing log output ${restore}" >&2
+      SILENT_BUILD=true
       ;;
     m)
       MODULE="${OPTARG}"
@@ -124,7 +114,7 @@ cd "${WORKING_DIR}"
 if [ "${ONLY_ZIP}" ]; then
   make_zip
 else
-  make_kernel
+  [[ ${SILENT_BUILD} ]] && make_kernel |& ag "error:|warning|${KERNEL}" || make_kernel
   [[ $? == 0 ]] || exit 256
   make_zip
 fi
@@ -139,6 +129,5 @@ DIFF=$((${DATE_END} - ${DATE_START}))
 echo "Time: $(($DIFF / 60)) minute(s) and $(($DIFF % 60)) seconds."
 echo " "
 
-[ "${TG_UPLOAD}" ] && upload_to_tg
 [ "${FLASH}" ] && push_and_flash
 [ "${BB_UPLOAD}" ] && bb_upload
