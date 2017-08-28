@@ -19,7 +19,7 @@ KERNEL="Image.gz-dtb"
 
 # Caesium Kernel Details
 KERNEL_NAME="Caesium"
-VER="CrunchyPapaya"
+VER="MushyGuava"
 VER="-$(date +"%Y%m%d"-"%H%M%S")-$VER"
 DEVICE="-oneplus3"
 FINAL_VER="${KERNEL_NAME}""${DEVICE}""${VER}"
