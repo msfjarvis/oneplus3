@@ -61,12 +61,11 @@ function make_zip() {
   cd "${WORKING_DIR}"
 }
 
-function push_and_flash() {
+function push_to_device() {
   adb push "${ZIP_MOVE}"/${FINAL_VER}.zip /sdcard/Caesium/
-  adb shell twrp install "/sdcard//Caesium/${FINAL_VER}.zip"
 }
 
-while getopts ":cbfrsm:" opt; do
+while getopts ":cbprsm:" opt; do
   case $opt in
     c)
       echo -e "${cyan} Building clean ${restore}" >&2
@@ -76,9 +75,9 @@ while getopts ":cbfrsm:" opt; do
       echo -e "${cyan} Building ZIP only ${restore}" >&2
       ONLY_ZIP=true
       ;;
-    f)
-      echo -e "${cyan} Will auto-flash kernel ${restore}" >&2
-      FLASH=true
+    p)
+      echo -e "${cyan} Will auto-push kernel ${restore}" >&2
+      PUSH=true
       ;;
     r)
       echo -e "${cyan} Regenerating defconfig ${restore}" >&2
@@ -129,5 +128,5 @@ DIFF=$((${DATE_END} - ${DATE_START}))
 echo "Time: $(($DIFF / 60)) minute(s) and $(($DIFF % 60)) seconds."
 echo " "
 
-[ "${FLASH}" ] && push_and_flash
+[ "${PUSH}" ] && push_to_device
 [ "${BB_UPLOAD}" ] && bb_upload
