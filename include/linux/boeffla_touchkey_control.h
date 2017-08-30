@@ -22,7 +22,7 @@
 // Definitions
 /*****************************************/
 
-#define	MODE_NORMAL			0
+#define	MODE_TOUCHKEY_DISP	0
 #define MODE_TOUCHKEY_ONLY	1
 #define MODE_OFF			2
 
@@ -33,7 +33,7 @@
 #define BRIGHTNESS_DEFAULT	40
 #define BRIGHTNESS_OFF		0
 
-#define BTK_CONTROL_VERSION 	"1.2.0"
+#define BTK_CONTROL_VERSION 	"1.3.0"
 
 
 /*****************************************/
