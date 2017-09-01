@@ -3514,7 +3514,7 @@ static void binder_release_work(struct binder_worklist *wlist)
 			binder_stats_deleted(BINDER_STAT_DEATH);
 		} break;
 		case BINDER_WORK_NODE:
-			pr_info("unfinished BINDER_WORK_NODE, proc has died\n");
+			pr_debug("unfinished BINDER_WORK_NODE, proc has died\n");
 			break;
 		default:
 			pr_err("unexpected work type, %d, not freed\n",
