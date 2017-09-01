@@ -2874,11 +2874,13 @@ uint32_t vos_get_log_indicator(void)
 	if (vos_context->isLoadUnloadInProgress ||
 		vos_context->isLogpInProgress ||
 		vos_context->isReInitInProgress) {
+		/*
 		VOS_TRACE(VOS_MODULE_ID_VOSS, VOS_TRACE_LEVEL_ERROR,
 			  FL("vos context initialization is in progress LoadUnload: %u LogP: %u ReInit: %u"),
 			     vos_context->isLoadUnloadInProgress,
 			     vos_context->isLogpInProgress,
 			     vos_context->isReInitInProgress);
+		*/
 		return WLAN_LOG_INDICATOR_UNUSED;
 	}
 
