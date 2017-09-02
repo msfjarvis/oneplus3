@@ -1,6 +1,6 @@
 #
 # Automatically generated file; DO NOT EDIT.
-# Linux/arm64 3.18.67-halogenOS-JuicyApple Kernel Configuration
+# Linux/arm64 3.18.69-halogenOS-JuicyApple-rc1 Kernel Configuration
 #
 CONFIG_ARM64=y
 CONFIG_64BIT=y
@@ -439,6 +439,7 @@ CONFIG_GENERIC_EARLY_IOREMAP=y
 CONFIG_KSWAPD_CPU_AFFINITY_MASK=""
 CONFIG_FORCE_ALLOC_FROM_DMA_ZONE=y
 # CONFIG_PROCESS_RECLAIM is not set
+CONFIG_HARDENED_USERCOPY=y
 CONFIG_SECCOMP=y
 # CONFIG_XEN is not set
 CONFIG_FORCE_MAX_ZONEORDER=11
