@@ -10,8 +10,6 @@ blue='\033[01;34m'
 blink_red='\033[05;31m'
 restore='\033[0m'
 
-clear
-
 # Resources
 THREAD="-j$(($(nproc --all) * 2))"
 DEFCONFIG="oneplus3_defconfig"
