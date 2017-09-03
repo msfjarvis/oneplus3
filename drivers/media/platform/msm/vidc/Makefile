@@ -16,3 +16,4 @@ obj-$(CONFIG_MSM_VIDC_V4L2) := 	msm_v4l2_vidc.o \
 obj-$(CONFIG_MSM_VIDC_V4L2) += governors/
 
 obj-$(CONFIG_MSM_VIDC_VMEM) += vmem/
+CFLAGS_msm_vidc_common.o := -Wno-parentheses
