@@ -18,6 +18,9 @@
 /*
  * Change log:
  *
+ * 1.3.1 (06.09.2017)
+ *	- Corrections of some pr_debug functions
+ * 
  * 1.3.0 (30.08.2017)
  *	- Adjust to stock handling, where by default display touch does not
  *    light up the touchkey lights anymore
@@ -85,7 +88,7 @@ static DECLARE_DELAYED_WORK(led_work, led_work_func);
 
 static void led_work_func(struct work_struct *unused)
 {
-	pr_debug("Boeffla touch key control: timeout over, disable touchkey led");
+	pr_debug("Boeffla touch key control: timeout over, disable touchkey led\n");
 
 	// switch off LED and cancel any scheduled work
 	qpnp_boeffla_set_button_backlight(BRIGHTNESS_OFF);
@@ -99,7 +102,7 @@ static int lcd_notifier_callback(struct notifier_block *this,
 	switch (event)
 	{
 		case LCD_EVENT_OFF_START:
-			pr_debug("Boeffla touch key control: screen off detected, disable touchkey led");
+			pr_debug("Boeffla touch key control: screen off detected, disable touchkey led\n");
 			
 			// switch off LED and cancel any scheduled work
 			qpnp_boeffla_set_button_backlight(BRIGHTNESS_OFF);
@@ -107,7 +110,7 @@ static int lcd_notifier_callback(struct notifier_block *this,
 			break;
 
 		case LCD_EVENT_ON_START:
-			pr_debug("Boeffla touch key control: screen on detected");
+			pr_debug("Boeffla touch key control: screen on detected\n");
 
 			// only if in touchkey+display mode, or touchkey_only but with kernel controlled
 			// timeout, switch on LED and schedule work to switch it off again

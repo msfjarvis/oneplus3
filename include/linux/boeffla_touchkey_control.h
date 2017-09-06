@@ -33,7 +33,7 @@
 #define BRIGHTNESS_DEFAULT	40
 #define BRIGHTNESS_OFF		0
 
-#define BTK_CONTROL_VERSION 	"1.3.0"
+#define BTK_CONTROL_VERSION 	"1.3.1"
 
 
 /*****************************************/
