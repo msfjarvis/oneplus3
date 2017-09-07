@@ -1,6 +1,6 @@
 #
 # Automatically generated file; DO NOT EDIT.
-# Linux/arm64 3.18.69-Caesium-NuttyBanana Kernel Configuration
+# Linux/arm64 3.18.70-Caesium-NuttyBanana Kernel Configuration
 #
 CONFIG_ARM64=y
 CONFIG_64BIT=y
@@ -537,6 +537,7 @@ CONFIG_CPU_FREQ_GOV_INTERACTIVE=y
 # CONFIG_CPUFREQ_DT is not set
 CONFIG_CPU_BOOST=y
 # CONFIG_CPU_FREQ_GOV_BLU_ACTIVE is not set
+CONFIG_MSM_TRACK_FREQ_TARGET_INDEX=y
 
 #
 # ARM CPU frequency scaling drivers
@@ -1056,6 +1057,7 @@ CONFIG_NFC=y
 #
 # CONFIG_NFC_PN533 is not set
 # CONFIG_NFC_SIM is not set
+# CONFIG_NFC_PN544 is not set
 CONFIG_NFC_PN544_OP=y
 # CONFIG_NFC_NQ is not set
 CONFIG_IPC_ROUTER=y
