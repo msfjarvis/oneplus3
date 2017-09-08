@@ -46,8 +46,6 @@
 #define RCU_TREE_NONCORE
 #include "tree.h"
 
-#define ulong2long(a) (*(long *)(&(a)))
-
 DECLARE_PER_CPU_SHARED_ALIGNED(unsigned long, rcu_qs_ctr);
 
 static int r_open(struct inode *inode, struct file *file,
