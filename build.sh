@@ -35,7 +35,7 @@ TOOLCHAIN_DIR="${WORKING_DIR}/../../toolchains/aarch64-linux-gnu/"
 REPACK_DIR="${ANYKERNEL_DIR}"
 OUT_DIR="${WORKING_DIR}/out/"
 ZIP_MOVE="${WORKING_DIR}/zips/"
-MAKE="make O=${OUT_DIR}"
+MAKE="./makeparallel make O=${OUT_DIR}"
 
 # Functions
 function make_kernel() {
