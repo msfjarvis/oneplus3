@@ -15,7 +15,7 @@ config IOSCHED_NOOP
 config IOSCHED_TEST
 	tristate "Test I/O scheduler"
 	depends on DEBUG_FS
-	default m
+	default n
 	---help---
 	  The test I/O scheduler is a duplicate of the noop scheduler with
 	  addition of test utlity.
@@ -25,7 +25,7 @@ config IOSCHED_TEST
 
 config IOSCHED_DEADLINE
 	tristate "Deadline I/O scheduler"
-	default y
+	default n
 	---help---
 	  The deadline I/O scheduler is simple and compact. It will provide
 	  CSCAN service with FIFO expiration of requests, switching to
@@ -34,7 +34,7 @@ config IOSCHED_DEADLINE
 
 config IOSCHED_MAPLE
 	tristate "Maple I/O scheduler"
-	default y
+	default n
 
 config IOSCHED_CFQ
 	tristate "CFQ I/O scheduler"
@@ -49,7 +49,7 @@ config IOSCHED_CFQ
 
 config IOSCHED_FIOPS
 	tristate "IOPS based I/O scheduler"
-	default y
+	default n
 	---help---
 	  This is an IOPS based I/O scheduler. It will try to distribute
           IOPS equally among all processes in the system. It's mainly for
@@ -57,7 +57,7 @@ config IOSCHED_FIOPS
 
 config IOSCHED_SIO
 	tristate "Simple I/O scheduler"
-	default y
+	default n
 	---help---
 	  The Simple I/O scheduler is an extremely simple scheduler,
 	  based on noop and deadline, that relies on deadlines to
@@ -74,7 +74,7 @@ config CFQ_GROUP_IOSCHED
 
 config IOSCHED_BFQ
 	tristate "BFQ I/O scheduler"
-	default n
+	default y
 	---help---
 	  The BFQ I/O scheduler tries to distribute bandwidth among
 	  all processes according to their weights.
@@ -95,7 +95,7 @@ config CGROUP_BFQIO
 
 config IOSCHED_ZEN
 	tristate "Zen I/O scheduler"
-	default y
+	default n
 	---help---
 	  FCFS, dispatches are back-inserted, deadlines ensure fairness.
 	  Should work best with devices where there is no travel delay.
