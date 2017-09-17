@@ -39,7 +39,35 @@ OUT_DIR="${WORKING_DIR}/out/"
 ZIP_MOVE="${WORKING_DIR}/zips/"
 MAKE="./makeparallel make O=${OUT_DIR}"
 
-# Functions
+## Functions
+# Prints a formatted header to let the user know what's being done
+function echoText {
+    echo -e ${CL_RED}
+    echo -e "====$( for i in $( seq ${#1} ); do echo -e "=\c"; done )===="
+    echo -e "==  ${1}  =="
+    echo -e "====$( for i in $( seq ${#1} ); do echo -e "=\c"; done )===="
+    echo -e ${CL_RST}
+}
+
+# Prints an error in bold red
+function reportError {
+    echo -e ""
+    echo -e ${CL_RED}"${1}"${CL_RST}
+    if [[ -z ${2} ]]; then
+        echo -e ""
+    fi
+    exit 1
+}
+
+# Prints a warning in bold yellow
+function reportWarning {
+    echo -e ""
+    echo -e ${CL_YLW}"${1}"${CL_RST}
+    if [[ -z ${2} ]]; then
+        echo -e ""
+    fi
+}
+
 function make_kernel() {
   [ "${CLEAN}" ] && ${MAKE} clean && ${MAKE} mrproper
   ${MAKE} "${DEFCONFIG}" "${THREAD}"
