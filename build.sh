@@ -3,12 +3,14 @@
 rm .version 2>/dev/null
 
 # Bash colors
-green='\033[01;32m'
-red='\033[01;31m'
-cyan='\033[01;36m'
-blue='\033[01;34m'
-blink_red='\033[05;31m'
-restore='\033[0m'
+CL_GRN='\033[01;32m'
+CL_BOLD="\033[1m"
+CL_INV="\033[7m"
+CL_RED="\033[01;31m"
+CL_RST="\033[0m"
+CL_YLW="\033[01;33m"
+CL_BLUE="\033[01;34m"
+
 
 # Resources
 THREAD="-j$(($(nproc --all) * 2))"
@@ -66,33 +68,33 @@ function push_to_device() {
 while getopts ":cbprsm:" opt; do
   case $opt in
     c)
-      echo -e "${cyan} Building clean ${restore}" >&2
+      echo -e "${CL_BOLD} Building clean ${CL_RST}" >&2
       CLEAN=true
       ;;
     b)
-      echo -e "${cyan} Building ZIP only ${restore}" >&2
+      echo -e "${CL_BOLD} Building ZIP only ${CL_RST}" >&2
       ONLY_ZIP=true
       ;;
     p)
-      echo -e "${cyan} Will auto-push kernel ${restore}" >&2
+      echo -e "${CL_BOLD} Will auto-push kernel ${CL_RST}" >&2
       PUSH=true
       ;;
     r)
-      echo -e "${cyan} Regenerating defconfig ${restore}" >&2
+      echo -e "${CL_BOLD} Regenerating defconfig ${CL_RST}" >&2
       REGEN_DEFCONFIG=true
       ;;
     s)
-      echo -e "${cyan} Suppressing log output ${restore}" >&2
+      echo -e "${CL_BOLD} Suppressing log output ${CL_RST}" >&2
       SILENT_BUILD=true
       ;;
     m)
       MODULE="${OPTARG}"
       [[ "${MODULE}" == */ ]] || MODULE="${MODULE}/"
       if [[ ! "$(ls ${MODULE}Kconfig*  2>/dev/null)" ]]; then
-          echo -e "${red} Invalid module specified - ${MODULE} ${restore}"
+          echo -e "${CL_RED} Invalid module specified - ${MODULE} ${CL_RST}"
           return 1
       fi
-      echo -e "${cyan} Building module ${MODULE} ${restore}"
+      echo -e "${CL_BOLD} Building module ${MODULE} ${CL_RST}"
       ;;
     \?)
       echo "Invalid option: -${OPTARG}" >&2
@@ -116,10 +118,10 @@ else
   make_zip
 fi
 
-echo -e "${green}"
+echo -e "${CL_GRN}"
 echo "${FINAL_VER}.zip"
 echo "------------------------------------------"
-echo -e "${restore}"
+echo -e "${CL_RST}"
 
 DATE_END=$(date +"%s")
 DIFF=$((${DATE_END} - ${DATE_START}))
