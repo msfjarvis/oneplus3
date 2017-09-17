@@ -20,9 +20,10 @@ KERNEL="Image.gz-dtb"
 # Caesium Kernel Details
 KERNEL_NAME="Caesium"
 VER="CreepyMango"
+export LOCALVERSION=${KERNEL_NAME}-${VER}
 VER="-$(date +"%Y%m%d"-"%H%M%S")-$VER"
 DEVICE="-oneplus3"
-FINAL_VER="${KERNEL_NAME}""${DEVICE}""${VER}"
+FINAL_VER=${KERNEL_NAME}${DEVICE}${VER}
 
 # Vars
 export ARCH=arm64
