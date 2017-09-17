@@ -43,6 +43,7 @@ MAKE="./makeparallel make O=${OUT_DIR}"
 # Prints a formatted header to let the user know what's being done
 function echoText {
     echo -e ${CL_RED}
+    echo -e ${CL_BOLD}
     echo -e "====$( for i in $( seq ${#1} ); do echo -e "=\c"; done )===="
     echo -e "==  ${1}  =="
     echo -e "====$( for i in $( seq ${#1} ); do echo -e "=\c"; done )===="
@@ -68,93 +69,110 @@ function reportWarning {
     fi
 }
 
-function make_kernel() {
-  [ "${CLEAN}" ] && ${MAKE} clean && ${MAKE} mrproper
-  ${MAKE} "${DEFCONFIG}" "${THREAD}"
-  [ "${REGEN_DEFCONFIG}" ] && cp "${OUT_DIR}".config arch/"${ARCH}"/configs/"${DEFCONFIG}" && exit 1
-  if [ "${MODULE}" ]; then
-      ${MAKE} "${MODULE}" "${THREAD}"
-  else
-      ${MAKE} "${KERNEL}" "${THREAD}"
-  fi
-  BUILT_KERNEL="out/arch/${ARCH}/boot/${KERNEL}"
-  [ -f "${BUILT_KERNEL}" ] && cp -vr "${BUILT_KERNEL}" "${REPACK_DIR}" && return 0 || return 1
+# Prints the success banner
+function reportSuccess {
+    echo -e ${CL_GRN}
+    echo -e ${CL_BOLD}
+    echo -e "====$( for i in $( seq ${#1} ); do echo -e "=\c"; done )===="
+    echo -e "==  ${1}  =="
+    echo -e "====$( for i in $( seq ${#1} ); do echo -e "=\c"; done )===="
+    echo -e ${CL_RST}
 }
 
-function make_zip() {
-  cd "${REPACK_DIR}"
-  zip -ur kernel_temp.zip *
-  mkdir -p "${ZIP_MOVE}"
-  cp  kernel_temp.zip "${ZIP_MOVE}/${FINAL_VER}.zip"
-  cd "${WORKING_DIR}"
+function check_toolchain() {
+
+    export TC="$(find ${TOOLCHAIN_DIR}/bin -type f -name *-gcc)";
+
+        if [[ -f "${TC}" ]]; then
+                export CROSS_COMPILE="${TOOLCHAIN_DIR}/bin/$(echo ${TC} | awk -F '/' '{print $NF'} | sed -e 's/gcc//')";
+                echoText "$Using toolchain: $(${CROSS_COMPILE}gcc --version | head -1)"
+        else
+                reportError "No suitable toolchain found in ${TOOLCHAIN_DIR}";
+        fi
+}
+
+function make_kernel {
+  make_defconfig
+  if [ ${MODULE} ]; then
+      ${MAKE} ${MODULE} ${THREAD} |& ag "error:|warning"
+  else
+      ${MAKE} ${KERNEL} ${THREAD} |& ag "error:|warning"
+  fi
+  BUILT_KERNEL=out/arch/${ARCH}/boot/${KERNEL}
+  [ -f "${BUILT_KERNEL}" ] && cp -r ${BUILT_KERNEL} ${REPACK_DIR} && return 0 || reportError "Kernel compilation failed"
+}
+
+function make_defconfig {
+  if [ ${CLEAN} ]; then
+    ${MAKE} clean 1>/dev/null 2>/dev/null
+    ${MAKE} mrproper 1>/dev/null 2>/dev/null
+  fi
+  ${MAKE} ${DEFCONFIG} ${THREAD} 1>/dev/null 2>/dev/null
+  [ ${REGEN_DEFCONFIG} ] && cp ${OUT_DIR}/.config arch/${ARCH}/configs/${DEFCONFIG} && echoText "Regenerated defconfig successfully" && exit 1
+
+}
+function make_zip {
+  cd ${REPACK_DIR}
+  rm *.zip 2>/dev/null
+  zip -r ${FINAL_VER}.zip * 1>/dev/null 2>/dev/null
+  mkdir -p ${ZIP_MOVE}
+  cp  ${FINAL_VER}.zip ${ZIP_MOVE}/
+  cd ${WORKING_DIR}
 }
 
 function push_to_device() {
-  adb push "${ZIP_MOVE}"/${FINAL_VER}.zip /sdcard/Caesium/
+  adb push ${ZIP_MOVE}/${FINAL_VER}.zip /sdcard/Caesium/
 }
 
-while getopts ":cbprsm:" opt; do
+while getopts ":cbprm:" opt; do
   case $opt in
     c)
-      echo -e "${CL_BOLD} Building clean ${CL_RST}" >&2
+      echoText " Building clean " >&2
       CLEAN=true
       ;;
     b)
-      echo -e "${CL_BOLD} Building ZIP only ${CL_RST}" >&2
+      echoText " Building ZIP only " >&2
       ONLY_ZIP=true
       ;;
     p)
-      echo -e "${CL_BOLD} Will auto-push kernel ${CL_RST}" >&2
+      echoText " Will auto-push kernel " >&2
       PUSH=true
       ;;
     r)
-      echo -e "${CL_BOLD} Regenerating defconfig ${CL_RST}" >&2
+      echoText " Regenerating defconfig " >&2
       REGEN_DEFCONFIG=true
       ;;
-    s)
-      echo -e "${CL_BOLD} Suppressing log output ${CL_RST}" >&2
-      SILENT_BUILD=true
-      ;;
     m)
-      MODULE="${OPTARG}"
-      [[ "${MODULE}" == */ ]] || MODULE="${MODULE}/"
+      MODULE=${OPTARG}
+      [[ ${MODULE} == */ ]] || MODULE=${MODULE}/
       if [[ ! "$(ls ${MODULE}Kconfig*  2>/dev/null)" ]]; then
-          echo -e "${CL_RED} Invalid module specified - ${MODULE} ${CL_RST}"
+          reportError "Invalid module specified - ${MODULE}"
           return 1
       fi
-      echo -e "${CL_BOLD} Building module ${MODULE} ${CL_RST}"
+      echoText "Building module ${MODULE}"
       ;;
     \?)
-      echo "Invalid option: -${OPTARG}" >&2
+      reportWarning "Invalid option: -${OPTARG}" >&2
       ;;
   esac
 done
 
 DATE_START=$(date +"%s")
 
-# TC tasks
-export CROSS_COMPILE=$TOOLCHAIN_DIR/bin/aarch64-linux-gnu-
-export LD_LIBRARY_PATH=$TOOLCHAIN_DIR/lib/
-cd "${WORKING_DIR}"
-
 # Make
-if [ "${ONLY_ZIP}" ]; then
+check_toolchain
+if [ ${ONLY_ZIP} ]; then
   make_zip
 else
-  [[ ${SILENT_BUILD} ]] && make_kernel |& ag "error:|warning|${KERNEL}" || make_kernel
-  [[ $? == 0 ]] || exit 256
+  make_kernel
   make_zip
 fi
 
-echo -e "${CL_GRN}"
-echo "${FINAL_VER}.zip"
-echo "------------------------------------------"
-echo -e "${CL_RST}"
-
 DATE_END=$(date +"%s")
 DIFF=$((${DATE_END} - ${DATE_START}))
-echo "Time: $(($DIFF / 60)) minute(s) and $(($DIFF % 60)) seconds."
-echo " "
+reportSuccess ${FINAL_VER}.zip
 
-[ "${PUSH}" ] && push_to_device
-[ "${BB_UPLOAD}" ] && bb_upload
+reportWarning "Time: $(($DIFF / 60)) minute(s) and $(($DIFF % 60)) seconds."
+
+[ ${PUSH} ] && push_to_device
+[ ${BB_UPLOAD} ] && bb_upload
