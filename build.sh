@@ -19,7 +19,7 @@ KERNEL="Image.gz-dtb"
 
 # Caesium Kernel Details
 KERNEL_NAME="Caesium"
-VER="CreepyMango"
+VER="SensualPear"
 export LOCALVERSION=${KERNEL_NAME}-${VER}
 VER="-$(date +"%Y%m%d"-"%H%M%S")-$VER"
 DEVICE="-oneplus3"
