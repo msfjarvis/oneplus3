@@ -1158,36 +1158,6 @@ static ssize_t store_timer_rate(struct cpufreq_interactive_tunables *tunables,
 	return count;
 }
 
-static ssize_t show_sleep_timer_rate(struct cpufreq_interactive_tunables
-		*tunables, char *buf)
-{
-	return sprintf(buf, "%lu\n", tunables->sleep_timer_rate);
-}
-
-static ssize_t store_sleep_timer_rate(struct cpufreq_interactive_tunables
-		*tunables, const char *buf, size_t count)
-{
-	int ret;
-	unsigned long val, val_round;
-
-	ret = kstrtoul(buf, 0, &val);
-	if (ret < 0)
-		return ret;
-
-	val_round = jiffies_to_usecs(usecs_to_jiffies(val));
-
-	if (val_round == tunables->sleep_timer_rate)
-		return count;
-
-	if (val != val_round)
-		pr_warn("sleep_timer_rate not aligned to jiffy. Rounded up to %lu\n",
-			val_round);
-
-	tunables->sleep_timer_rate = val_round;
-
-	return count;
-}
-
 static ssize_t show_timer_slack(struct cpufreq_interactive_tunables *tunables,
 		char *buf)
 {
@@ -1631,8 +1601,6 @@ static struct cpufreq_interactive_tunables *alloc_tunable(
 	tunables->ntarget_loads = ARRAY_SIZE(default_target_loads);
 	tunables->min_sample_time = DEFAULT_MIN_SAMPLE_TIME;
 	tunables->timer_rate = DEFAULT_TIMER_RATE;
-	tunables->prev_timer_rate = DEFAULT_TIMER_RATE;
-	tunables->sleep_timer_rate = SCREEN_OFF_TIMER_RATE;
 	tunables->boostpulse_duration_val = DEFAULT_BOOSTPULSE_DURATION;
 	tunables->timer_slack_val = DEFAULT_TIMER_SLACK;
 
