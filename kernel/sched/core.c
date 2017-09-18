@@ -92,6 +92,8 @@
 #include "sched.h"
 #include "../workqueue_internal.h"
 #include "../smpboot.h"
+#include <asm-generic/relaxed.h>
+#include <asm-generic/processor.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/sched.h>
