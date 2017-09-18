@@ -19,7 +19,7 @@ KERNEL="Image.gz-dtb"
 
 # Caesium Kernel Details
 KERNEL_NAME="Caesium"
-INCREMENTAL_VERSION="SensualPear"
+INCREMENTAL_VERSION="DerpyOranges"
 export LOCALVERSION=-${INCREMENTAL_VERSION}
 VER="-$(date +"%Y%m%d"-"%H%M%S")-${INCREMENTAL_VERSION}"
 DEVICE="-oneplus3"
