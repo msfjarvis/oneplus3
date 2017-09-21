@@ -31,8 +31,8 @@ chmod -R 755 $ramdisk
 ## Alert of unsupported Android version
 android_ver=$(mount /system; grep "^ro.build.version.release" /system/build.prop | cut -d= -f2; umount /system);
 case "$android_ver" in
-  "6.0"|"6.0.1") compatibility_string="your version is unsupported, expect no support!";;
-  "7.0"|"7.1"|"7.1.1"|"7.1.2") compatibility_string="your version is supported!";;
+  "6.0"|"6.0.1") compatibility_string="your version is unsupported, expect no support from the kernel developer!";;
+  "7.0"|"7.1"|"7.1.1"|"7.1.2"|"8.0.0") compatibility_string="your version is supported!";;
 esac;
 
 ui_print "Running Android $android_ver, $compatibility_string";
