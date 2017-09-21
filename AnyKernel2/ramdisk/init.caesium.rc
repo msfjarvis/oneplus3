@@ -4,12 +4,19 @@ on property:sys.boot_completed=1
     setprop spectrum.support 1
     setprop persist.spectrum.kernel Caesium
 
+# Wakelock blocking
 write  /sys/module/wakeup/parameters/enable_ipa_ws 'N'
 write  /sys/module/wakeup/parameters/enable_qcom_rx_wakelock_ws 'N'
 write  /sys/module/wakeup/parameters/enable_wlan_extscan_wl_ws 'N'
 write  /sys/module/wakeup/parameters/enable_netlink_ws 'N'
 write  /sys/module/wakeup/parameters/enable_timerfd_ws 'N'
 write  /sys/module/wakeup/parameters/enable_wlan_ws 'N'
+
+# MSM Thermal thresholds
+write  /sys/module/msm_thermal/parameters/enabled 'Y'
+write  /sys/module/msm_thermal/core_control/enabled '0'
+write  /sys/module/msm_thermal/parameters/temp_threshold '50'
+write  /sys/module/msm_thermal/parameters/core_limit_temp_degC '60'
 
 # Balance (default profile)
 on property:persist.spectrum.profile=0
