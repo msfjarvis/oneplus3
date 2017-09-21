@@ -1,5 +1,5 @@
 #include <linux/module.h>
-#include <linux/kernel.h>    
+#include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/input.h>
 #include <linux/delay.h>
@@ -25,7 +25,7 @@ MODULE_LICENSE("GPL");
 extern void set_vibrate(int value);
 
 // 1=sweep right, 2=sweep left, 3=both
-static int s2s_switch = 2;
+static int s2s_switch = 0;
 
 static int touch_x = 0, touch_y = 0, firstx = 0;
 static bool touch_x_called = false, touch_y_called = false;
