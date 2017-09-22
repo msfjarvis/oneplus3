@@ -21,12 +21,8 @@ write  /sys/module/msm_thermal/parameters/core_limit_temp_degC 60
 
 # Balance (default profile)
 on property:persist.spectrum.profile=0
-    write /sys/module/msm_performance/parameters/cpu_min_freq 0:307200
-    write /sys/module/msm_performance/parameters/cpu_min_freq 1:307200
-    write /sys/module/msm_performance/parameters/cpu_max_freq 2:2150400
-    write /sys/module/msm_performance/parameters/cpu_max_freq 3:2150400
-    write /sys/module/msm_performance/parameters/cpu_max_freq 0:1593600
-    write /sys/module/msm_performance/parameters/cpu_max_freq 1:1593600
+    write /sys/module/msm_performance/parameters/cpu_min_freq '0:307200 1:307200'
+    write /sys/module/msm_performance/parameters/cpu_max_freq '0:1593600 1:1593600 2:2150400 3:2150400'
     write /sys/module/msm_performance/parameters/touchboost 0
     write /sys/class/kgsl/kgsl-3d0/devfreq/min_freq 133000000
     write /sys/class/kgsl/kgsl-3d0/max_gpuclk 510000000
