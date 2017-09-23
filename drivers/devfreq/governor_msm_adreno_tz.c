@@ -412,7 +412,7 @@ static int tz_get_target_freq(struct devfreq *devfreq, unsigned long *freq,
 	/* Update the GPU load statistics */
 	compute_work_load(&stats, priv, devfreq);
 	if (!is_display_on()) {
-		*freq = devfreq->min_freq;
+		*freq = 133000000;
 		return 0;
 	}
 
