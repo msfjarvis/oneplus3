@@ -13,7 +13,6 @@
 #include <linux/module.h>
 #include <linux/devfreq.h>
 #include <linux/math64.h>
-#include <linux/display_state.h>
 #include "governor.h"
 
 /* Default constants for DevFreq-Simple-Ondemand (DFSO) */
@@ -49,11 +48,6 @@ static int devfreq_simple_ondemand_func(struct devfreq *df,
 	if (stat.busy_time >= (1 << 24) || stat.total_time >= (1 << 24)) {
 		stat.busy_time >>= 7;
 		stat.total_time >>= 7;
-	}
-
-	if (!is_display_on()) {
-		*freq = 133000000;
-		return 0;
 	}
 
 	if (data && data->simple_scaling) {
