@@ -261,6 +261,22 @@ void f2fs_sbi_list_del(struct f2fs_sb_info *sbi)
 	mutex_unlock(&f2fs_sbi_mutex);
 }
 
+static struct work_struct f2fs_gc_fb_worker;
+static void f2fs_gc_fb_work(struct work_struct *work)
+{
+	if (screen_on) {
+		stop_all_gc_threads();
+	} else {
+		/*
+		 * Start all GC threads exclusively from here
+		 * since the phone screen would turn on when
+		 * a charger is connected
+		 */
+		if (TRIGGER_SOFF)
+			start_all_gc_threads();
+	}
+}
+
 static int fb_notifier_callback(struct notifier_block *self,
 				unsigned long event, void *data)
 {
@@ -273,17 +289,11 @@ static int fb_notifier_callback(struct notifier_block *self,
 		switch (*blank) {
 		case FB_BLANK_POWERDOWN:
 			screen_on = false;
-			/*
-			 * Start all GC threads exclusively from here
-			 * since the phone screen would turn on when
-			 * a charger is connected
-			 */
-			if (TRIGGER_SOFF)
-				start_all_gc_threads();
+			queue_work(system_power_efficient_wq, &f2fs_gc_fb_worker);
 			break;
 		case FB_BLANK_UNBLANK:
 			screen_on = true;
-			stop_all_gc_threads();
+			queue_work(system_power_efficient_wq, &f2fs_gc_fb_worker);
 			break;
 		}
 	}
@@ -297,6 +307,7 @@ static struct notifier_block fb_notifier_block = {
 
 static int __init f2fs_gc_register_fb(void)
 {
+	INIT_WORK(&f2fs_gc_fb_worker, f2fs_gc_fb_work);
 	fb_register_client(&fb_notifier_block);
 
 	return 0;
