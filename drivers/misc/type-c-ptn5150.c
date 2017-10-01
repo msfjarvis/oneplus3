@@ -50,7 +50,7 @@
 /******************************************************************************/
 
 //#define USE_TIMER_WHEN_DFP_TO_DETETC_UFP
-#define OTG_WL_HOLD_TIME 5000
+#define OTG_WL_HOLD_TIME 1000
 
 #if (LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 38))
 #define KERNEL_ABOVE_2_6_38
