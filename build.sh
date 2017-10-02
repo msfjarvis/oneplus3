@@ -13,7 +13,7 @@ CL_BLUE="\033[01;34m"
 
 
 # Resources
-THREAD="-j$(($(nproc --all) * 2))"
+THREAD="-j$(nproc --all)"
 DEFCONFIG="oneplus3_defconfig"
 KERNEL="Image.gz-dtb"
 
