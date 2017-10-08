@@ -19,7 +19,7 @@ KERNEL="Image.gz-dtb"
 
 # Caesium Kernel Details
 KERNEL_NAME="Caesium"
-INCREMENTAL_VERSION="WinkingWatermelons"
+INCREMENTAL_VERSION="WarmApplePies"
 export LOCALVERSION=-${INCREMENTAL_VERSION}
 DEVICE="oneplus3"
 FINAL_VER="${KERNEL_NAME}-${DEVICE}-${INCREMENTAL_VERSION}"
