@@ -319,7 +319,7 @@ static int btk_control_init(void)
 	misc_register(&btkc_device);
 	if (sysfs_create_group(&btkc_device.this_device->kobj,
 				&btkc_control_group) < 0) {
-		printk("Boeffla touch key control: failed to create sys fs object.\n");
+		pr_err("Boeffla touch key control: failed to create sys fs object.\n");
 		return 0;
 	}
 
@@ -329,7 +329,7 @@ static int btk_control_init(void)
 		pr_err("%s: Failed to register fb callback\n", __func__);
 
 	// Print debug info
-	printk("Boeffla touch key control: driver version %s started\n", BTK_CONTROL_VERSION);
+	pr_debug("Boeffla touch key control: driver version %s started\n", BTK_CONTROL_VERSION);
 	return 0;
 }
 
@@ -348,7 +348,7 @@ static void btk_control_exit(void)
 	fb_unregister_client(&fb_notif);
 
 	// Print debug info
-	printk("Boeffla touch key control: driver stopped\n");
+	pr_debug("Boeffla touch key control: driver stopped\n");
 }
 
 
