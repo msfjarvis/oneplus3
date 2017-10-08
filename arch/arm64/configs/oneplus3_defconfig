@@ -1,6 +1,6 @@
 #
 # Automatically generated file; DO NOT EDIT.
-# Linux/arm64 3.18.72 Kernel Configuration
+# Linux/arm64 3.18.73 Kernel Configuration
 #
 CONFIG_ARM64=y
 CONFIG_64BIT=y
@@ -3431,6 +3431,7 @@ CONFIG_LEDS_TRIGGERS=y
 #
 # CONFIG_LEDS_TRIGGER_TRANSIENT is not set
 # CONFIG_LEDS_TRIGGER_CAMERA is not set
+CONFIG_BOEFFLA_TOUCH_KEY_CONTROL=y
 CONFIG_SWITCH=y
 # CONFIG_SWITCH_GPIO is not set
 # CONFIG_ACCESSIBILITY is not set
