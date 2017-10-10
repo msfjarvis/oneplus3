@@ -1,7 +1,7 @@
 /*
- * 
+ *
  * Boeffla touchkey control OnePlus3/OnePlus2
- * 
+ *
  * Author: andip71 (aka Lord Boeffla)
  *
  * This software is licensed under the terms of the GNU General Public
@@ -19,25 +19,25 @@
 
 
 /*****************************************/
-// Definitions
+/* Definitions */
 /*****************************************/
 
 #define	MODE_TOUCHKEY_DISP	0
 #define MODE_TOUCHKEY_ONLY	1
-#define MODE_OFF			2
+#define MODE_OFF		2
 
 #define TIMEOUT_DEFAULT		0
-#define TIMEOUT_MIN			0
-#define TIMEOUT_MAX			30000
+#define TIMEOUT_MIN		0
+#define TIMEOUT_MAX		30000
 
 #define BRIGHTNESS_DEFAULT	40
 #define BRIGHTNESS_OFF		0
 
-#define BTK_CONTROL_VERSION 	"1.3.1"
+#define BTK_CONTROL_VERSION 	"1.3.3"
 
 
 /*****************************************/
-// Function declarations
+/* Function declarations */
 /*****************************************/
 
 void btkc_touch_start(void);
