@@ -220,7 +220,7 @@ int btkc_led_set(int val)
 static ssize_t btkc_mode_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
-	return snprintf(buf, "Mode: %d\n", btkc_mode);
+	return snprintf(buf, PAGE_SIZE, "Mode: %d\n", btkc_mode);
 }
 
 
@@ -229,10 +229,10 @@ static ssize_t btkc_mode_store(struct device *dev,
 			const char *buf, size_t count)
 {
 	unsigned int ret = -EINVAL;
-	unsigned int val;
+	long unsigned int val;
 
 	/* check data and store if valid */
-	ret = kstrtoul(buf, "%d", &val);
+	ret = kstrtoul(buf, 0, &val);
 
 	if (ret != 1)
 		return -EINVAL;
@@ -252,7 +252,7 @@ static ssize_t btkc_mode_store(struct device *dev,
 static ssize_t btkc_timeout_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
-	return snprintf(buf, "Timeout [s]: %d\n", btkc_timeout);
+	return snprintf(buf, PAGE_SIZE, "Timeout [s]: %d\n", btkc_timeout);
 }
 
 
@@ -261,10 +261,10 @@ static ssize_t btkc_timeout_store(struct device *dev,
 			const char *buf, size_t count)
 {
 	unsigned int ret = -EINVAL;
-	unsigned int val;
+	long unsigned int val;
 
 	/* check data and store if valid */
-	ret = kstrtoul(buf, "%d", &val);
+	ret = kstrtoul(buf, 0, &val);
 
 	if (ret != 1)
 		return -EINVAL;
@@ -288,7 +288,7 @@ static ssize_t btkc_timeout_store(struct device *dev,
 static ssize_t btkc_version_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
-	return snprintf(buf, "%s\n", BTK_CONTROL_VERSION);
+	return snprintf(buf, PAGE_SIZE, "%s\n", BTK_CONTROL_VERSION);
 }
 
 
