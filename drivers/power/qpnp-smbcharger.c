@@ -5202,12 +5202,12 @@ static void handle_usb_removal(struct smbchg_chip *chip)
 	struct power_supply *parallel_psy = get_parallel_psy(chip);
 	int rc;
 
-	pr_smb(PR_STATUS, "triggered\n");
-	pr_info("triggered\n");
+	//pr_smb(PR_STATUS, "triggered\n");
+	pr_debug("triggered\n");
 	if (!chip->usb_type_redetecting) {
 		qpnp_set_fast_chg_allow(chip, false);
 		set_prop_fast_switch_to_normal_false(chip);
-		pr_info("switch off fastchg\n");
+		pr_debug("switch off fastchg\n");
 		usb_sw_gpio_set(0);
 		mcu_en_gpio_set(1);
 
@@ -9419,9 +9419,9 @@ static void update_heartbeat(struct work_struct *work)
 	if (chip->allow_print_log || smbchg_debug_mask & PR_DUMP) {
 		chip->allow_print_log = false;
 		read_usb_type(chip, &usb_type_name, &usb_supply_type);
-		pr_info("inserted charger type = %d (%s), charger_type = %d\n",
+		pr_debug("inserted charger type = %d (%s), charger_type = %d\n",
 				usb_supply_type, usb_type_name, charger_type);
-		pr_info("charger_type:%d,bat_voltage:%d,charger_voltage:%d,current:%d,temp:%d,capacity:%d\n",
+		pr_debug("charger_type:%d,bat_voltage:%d,charger_voltage:%d,current:%d,temp:%d,capacity:%d\n",
 				charger_type, get_prop_batt_voltage_now(chip) / 1000,
 				get_prop_charger_voltage_now(chip),
 				get_prop_batt_current_now(chip) / 1000,
