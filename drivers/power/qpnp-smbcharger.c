@@ -7177,7 +7177,7 @@ static irqreturn_t src_detect_handler(int irq, void *_chip)
 	bool src_detect = is_src_detect_high(chip);
 	int rc;
 
-	pr_info("%s chip->usb_present = %d usb_present = %d src_detect = %d hvdcp_3_det_ignore_uv=%d\n",
+	pr_debug("%s chip->usb_present = %d usb_present = %d src_detect = %d hvdcp_3_det_ignore_uv=%d\n",
 		chip->hvdcp_3_det_ignore_uv ? "Ignoring":"",
 		chip->usb_present, usb_present, src_detect,
 		chip->hvdcp_3_det_ignore_uv);
@@ -9459,7 +9459,7 @@ static int load_data(struct smbchg_chip *chip)
 	else
 		shutdown_soc = SOC_INVALID;
 
-	pr_info("stored_soc[0x%x], shutdown_soc[%d]\n", stored_soc, shutdown_soc);
+	pr_debug("stored_soc[0x%x], shutdown_soc[%d]\n", stored_soc, shutdown_soc);
 	return shutdown_soc;
 }
 
