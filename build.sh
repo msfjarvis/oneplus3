@@ -32,7 +32,7 @@ export KBUILD_BUILD_HOST=jarvisbox
 
 # Paths
 WORKING_DIR=$(pwd)
-ANYKERNEL_DIR="${WORKING_DIR}/AnyKernel2"
+ANYKERNEL_DIR="${WORKING_DIR}/../AnyKernel2"
 TOOLCHAIN_DIR="${WORKING_DIR}/../../toolchains/aarch64-linux-gnu/"
 REPACK_DIR="${ANYKERNEL_DIR}"
 OUT_DIR="${WORKING_DIR}/out/"
