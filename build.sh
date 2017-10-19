@@ -114,7 +114,7 @@ function make_defconfig {
 function make_zip {
   cd ${REPACK_DIR}
   rm *.zip 2>/dev/null
-  zip -r ${FINAL_VER}.zip * 1>/dev/null 2>/dev/null
+  zip -r ${FINAL_VER}.zip * -x ".git/*" "README.md" ".gitignore" "*.zip" 1>/dev/null 2>/dev/null
   mkdir -p ${ZIP_MOVE}
   cp  ${FINAL_VER}.zip ${ZIP_MOVE}/
   cd ${WORKING_DIR}
