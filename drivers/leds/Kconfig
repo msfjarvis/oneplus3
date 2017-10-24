@@ -545,10 +545,4 @@ config LEDS_AW2013
 comment "LED Triggers"
 source "drivers/leds/trigger/Kconfig"
 
-config BOEFFLA_TOUCH_KEY_CONTROL
-	bool "Boeffla touchkey control driver"
-	depends on LEDS_CLASS
-	help
-	  Boeffla touchkey control driver to control touch key backlight
-
 endif # NEW_LEDS
