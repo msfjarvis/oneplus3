@@ -1,7 +1,5 @@
 #!/bin/bash
 
-rm .version 2>/dev/null
-
 # Bash colors
 CL_GRN='\033[01;32m'
 CL_BOLD="\033[1m"
@@ -94,9 +92,17 @@ function check_toolchain() {
 function make_kernel {
   make_defconfig
   if [ ${MODULE} ]; then
-      ${MAKE} ${MODULE} ${THREAD} |& ag "error:|warning"
+      if [ ${VERBOSE} ]; then
+          ${MAKE} ${MODULE} ${THREAD}
+      else
+          ${MAKE} ${MODULE} ${THREAD} |& ag "error:|warning"
+      fi
   else
-      ${MAKE} ${KERNEL} ${THREAD} |& ag "error:|warning"
+      if [ ${VERBOSE} ]; then
+          ${MAKE} ${KERNEL} ${THREAD}
+      else
+          ${MAKE} ${KERNEL} ${THREAD} |& ag "error:|warning"
+      fi
   fi
   BUILT_KERNEL=out/arch/${ARCH}/boot/${KERNEL}
   [ -f "${BUILT_KERNEL}" ] && cp -r ${BUILT_KERNEL} ${REPACK_DIR} && return 0 || reportError "Kernel compilation failed"
@@ -114,17 +120,17 @@ function make_defconfig {
 function make_zip {
   cd ${REPACK_DIR}
   rm *.zip 2>/dev/null
+  ver=$(cat ${OUT_DIR}/.version)
+  if [[ ${ver} -ge 2 ]]; then
+    FINAL_VER=${FINAL_VER}-$(git rev-parse -C ${WORKING_DIR} --short HEAD)
+  fi
   zip -r ${FINAL_VER}.zip * -x ".git/*" "README.md" ".gitignore" "*.zip" 1>/dev/null 2>/dev/null
   mkdir -p ${ZIP_MOVE}
   cp  ${FINAL_VER}.zip ${ZIP_MOVE}/
   cd ${WORKING_DIR}
 }
 
-function push_to_device() {
-  adb push ${ZIP_MOVE}/${FINAL_VER}.zip /sdcard/Caesium/
-}
-
-while getopts ":cbprm:" opt; do
+while getopts ":cbrm:" opt; do
   case $opt in
     c)
       echoText " Building clean " >&2
@@ -133,10 +139,6 @@ while getopts ":cbprm:" opt; do
     b)
       echoText " Building ZIP only " >&2
       ONLY_ZIP=true
-      ;;
-    p)
-      echoText " Will auto-push kernel " >&2
-      PUSH=true
       ;;
     r)
       echoText " Regenerating defconfig " >&2
@@ -173,6 +175,3 @@ DIFF=$((${DATE_END} - ${DATE_START}))
 reportSuccess ${FINAL_VER}.zip
 
 reportWarning "Time: $(($DIFF / 60)) minute(s) and $(($DIFF % 60)) seconds."
-
-[ ${PUSH} ] && push_to_device
-[ ${BB_UPLOAD} ] && bb_upload
