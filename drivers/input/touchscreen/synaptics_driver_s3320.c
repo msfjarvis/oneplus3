@@ -93,7 +93,7 @@ static int dt2w_switch = 0;
 //#define SUPPORT_SLEEP_POWEROFF
 #define SUPPORT_GESTURE
 #define RESET_ONESECOND
-//#define SUPPORT_GLOVES_MODE
+#define SUPPORT_GLOVES_MODE
 //#define REPORT_2D_PRESSURE
 
 
