@@ -1,6 +1,7 @@
 #include <linux/percpu.h>
 #include <linux/sched.h>
 #include <linux/osq_lock.h>
+#include <linux/sched/rt.h>
 
 /*
  * An MCS like lock especially tailored for optimistic spinning for sleeping
