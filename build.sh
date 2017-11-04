@@ -18,7 +18,10 @@ KERNEL="Image.gz-dtb"
 # Caesium Kernel Details
 KERNEL_NAME="Caesium"
 INCREMENTAL_VERSION="FieryPassionFruit"
-export LOCALVERSION=-${INCREMENTAL_VERSION}
+LOCALVERSION=-${INCREMENTAL_VERSION}
+GIT_HASH=$(git rev-parse --short HEAD)
+[[ ${TEST_BUILD} ]] && LOCALVERSION=-${INCREMENTAL_VERSION}-${GIT_HASH}
+export LOCALVERSION=${LOCALVERSION}
 DEVICE="oneplus3"
 FINAL_VER="${KERNEL_NAME}-${DEVICE}-${INCREMENTAL_VERSION}"
 
@@ -120,17 +123,14 @@ function make_defconfig {
 function make_zip {
   cd ${REPACK_DIR}
   rm *.zip 2>/dev/null
-  ver=$(cat ${OUT_DIR}/.version)
-  if [[ ${ver} -ge 2 ]]; then
-    FINAL_VER=${FINAL_VER}-$(git rev-parse -C ${WORKING_DIR} --short HEAD)
-  fi
+  [[ ${TEST_BUILD} ]] && FINAL_VER=${FINAL_VER}-$(date +"%Y%m%d"-"%H%M%S")-${GIT_HASH}
   zip -r ${FINAL_VER}.zip * -x ".git/*" "README.md" ".gitignore" "*.zip" 1>/dev/null 2>/dev/null
   mkdir -p ${ZIP_MOVE}
   cp  ${FINAL_VER}.zip ${ZIP_MOVE}/
   cd ${WORKING_DIR}
 }
 
-while getopts ":cbrm:" opt; do
+while getopts ":cbrm:t" opt; do
   case $opt in
     c)
       echoText " Building clean " >&2
@@ -143,6 +143,10 @@ while getopts ":cbrm:" opt; do
     r)
       echoText " Regenerating defconfig " >&2
       REGEN_DEFCONFIG=true
+      ;;
+    t)
+      echoText " Setting test build parameters" >&2
+      TEST_BUILD=true
       ;;
     m)
       MODULE=${OPTARG}
