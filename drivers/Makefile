@@ -9,7 +9,7 @@ obj-y				+= irqchip/
 obj-y				+= bus/
 
 obj-$(CONFIG_GENERIC_PHY)	+= phy/
-obj-$(CONFIG_CPUQUIET_FRAMEWORK) += cpuquiet/
+obj-$(CONFIG_CPU_QUIET) += cpuquiet/
 
 # GPIO must come after pinctrl as gpios may need to mux pins etc
 obj-y				+= pinctrl/
