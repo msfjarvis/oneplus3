@@ -156,13 +156,20 @@ static int msm_unload(struct drm_device *dev)
 	return 0;
 }
 
+#define KMS_MDP4 0
+#define KMS_MDP5 1
+#define KMS_SDE  2
+
 static int get_mdp_ver(struct platform_device *pdev)
 {
 #ifdef CONFIG_OF
 	static const struct of_device_id match_types[] = { {
 		.compatible = "qcom,mdss_mdp",
-		.data	= (void	*)5,
-	}, {
+		.data	= (void	*)KMS_MDP5,
+	},
+	{
+		.compatible = "qcom,sde-kms",
+		.data	= (void	*)KMS_SDE,
 		/* end node */
 	} };
 	struct device *dev = &pdev->dev;
@@ -171,7 +178,7 @@ static int get_mdp_ver(struct platform_device *pdev)
 	if (match)
 		return (int)match->data;
 #endif
-	return 4;
+	return KMS_MDP4;
 }
 
 static int msm_load(struct drm_device *dev, unsigned long flags)
@@ -240,11 +247,14 @@ static int msm_load(struct drm_device *dev, unsigned long flags)
 		return ret;
 
 	switch (get_mdp_ver(pdev)) {
-	case 4:
+	case KMS_MDP4:
 		kms = mdp4_kms_init(dev);
 		break;
-	case 5:
+	case KMS_MDP5:
 		kms = mdp5_kms_init(dev);
+		break;
+	case KMS_SDE:
+		kms = sde_kms_init(dev);
 		break;
 	default:
 		kms = ERR_PTR(-ENODEV);
@@ -979,6 +989,7 @@ static const struct platform_device_id msm_id[] = {
 static const struct of_device_id dt_match[] = {
 	{ .compatible = "qcom,mdp" },      /* mdp4 */
 	{ .compatible = "qcom,mdss_mdp" }, /* mdp5 */
+	{ .compatible = "qcom,sde-kms" },  /* sde  */
 	{}
 };
 MODULE_DEVICE_TABLE(of, dt_match);
