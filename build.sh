@@ -17,7 +17,7 @@ KERNEL="Image.gz-dtb"
 
 # Caesium Kernel Details
 KERNEL_NAME="Caesium"
-INCREMENTAL_VERSION="FieryPassionFruit"
+INCREMENTAL_VERSION="CaptivatingCranberries"
 LOCALVERSION=-${INCREMENTAL_VERSION}
 GIT_HASH=$(git rev-parse --short HEAD)
 [[ ${TEST_BUILD} ]] && LOCALVERSION=-${INCREMENTAL_VERSION}-${GIT_HASH}
