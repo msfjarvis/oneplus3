@@ -18,10 +18,8 @@ KERNEL="Image.gz-dtb"
 # Caesium Kernel Details
 KERNEL_NAME="Caesium"
 INCREMENTAL_VERSION="CaptivatingCranberries"
-LOCALVERSION=-${INCREMENTAL_VERSION}
+export LOCALVERSION=-${INCREMENTAL_VERSION}
 GIT_HASH=$(git rev-parse --short HEAD)
-[[ ${TEST_BUILD} ]] && LOCALVERSION=-${INCREMENTAL_VERSION}-${GIT_HASH}
-export LOCALVERSION=${LOCALVERSION}
 DEVICE="oneplus3"
 FINAL_VER="${KERNEL_NAME}-${DEVICE}-${INCREMENTAL_VERSION}"
 
@@ -147,6 +145,7 @@ while getopts ":cbrm:t" opt; do
     t)
       echoText " Setting test build parameters" >&2
       TEST_BUILD=true
+      export LOCALVERSION="-${INCREMENTAL_VERSION}-${GIT_HASH}"
       ;;
     m)
       MODULE=${OPTARG}
