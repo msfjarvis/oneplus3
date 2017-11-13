@@ -587,7 +587,7 @@ static int loop_switch(struct loop_device *lo, struct file *file)
 	bio->bi_private = &w;
 	bio->bi_bdev = NULL;
 	loop_make_request(lo->lo_queue, bio);
-	wait_for_completion(&w.wait);
+	wait_for_completion_interruptible(&w.wait);
 	return 0;
 }
 
