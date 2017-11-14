@@ -830,6 +830,7 @@ static int loop_set_fd(struct loop_device *lo, fmode_t mode,
 	int		lo_flags = 0;
 	int		error;
 	loff_t		size;
+	const unsigned long allowed_cpus = 0x3;
 
 	/* This is safe, since we have a reference from open(). */
 	__module_get(THIS_MODULE);
@@ -909,9 +910,15 @@ static int loop_set_fd(struct loop_device *lo, fmode_t mode,
 	lo->lo_thread = kthread_create(loop_thread, lo, "loop%d",
 						lo->lo_number);
 	if (IS_ERR(lo->lo_thread)) {
+		pr_err("Unable to create loop thread\n");
 		error = PTR_ERR(lo->lo_thread);
 		goto out_clr;
 	}
+
+	/* Restrict the loop thread to the power cluster to save power */
+	do_set_cpus_allowed(lo->lo_thread, to_cpumask(&allowed_cpus));
+	lo->lo_thread->flags |= PF_NO_SETAFFINITY;
+
 	lo->lo_state = Lo_bound;
 	wake_up_process(lo->lo_thread);
 	if (part_shift)
