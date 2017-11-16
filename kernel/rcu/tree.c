@@ -3985,8 +3985,6 @@ void __init rcu_init(void)
 {
 	int cpu;
 
-	rcu_early_boot_tests();
-
 	rcu_bootup_announce();
 	rcu_init_geometry();
 	rcu_init_one(&rcu_bh_state, &rcu_bh_data);
