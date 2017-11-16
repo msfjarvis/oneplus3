@@ -1497,7 +1497,6 @@ static int fanout_add(struct sock *sk, u16 id, u16 type_flags)
 		list_del(&match->list);
 		kfree(match);
 	}
-	mutex_unlock(&fanout_mutex);
 
 out:
 	mutex_unlock(&fanout_mutex);
