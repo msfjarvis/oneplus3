@@ -17,7 +17,7 @@ KERNEL="Image.gz-dtb"
 
 # Caesium Kernel Details
 KERNEL_NAME="Caesium"
-INCREMENTAL_VERSION="PerfectPrunes_v2"
+INCREMENTAL_VERSION="BeautifulBreadfruit"
 export LOCALVERSION=-${INCREMENTAL_VERSION}
 GIT_HASH=$(git rev-parse --short HEAD)
 DEVICE="oneplus3"
