@@ -110,10 +110,7 @@ function make_kernel {
 }
 
 function make_defconfig {
-  if [ ${CLEAN} ]; then
-    ${MAKE} clean 1>/dev/null 2>/dev/null
-    ${MAKE} mrproper 1>/dev/null 2>/dev/null
-  fi
+  [ ${CLEAN} ] && rm -rf ${OUT_DIR}
   ${MAKE} ${DEFCONFIG} ${THREAD} 1>/dev/null 2>/dev/null
   [ ${REGEN_DEFCONFIG} ] && cp ${OUT_DIR}/.config arch/${ARCH}/configs/${DEFCONFIG} && echoText "Regenerated defconfig successfully" && exit 1
 
