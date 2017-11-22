@@ -610,7 +610,6 @@ static DEVICE_ATTR(num_presets, S_IRUGO, mdss_livedisplay_get_num_presets, NULL)
 static DEVICE_ATTR(hbm, S_IRUGO | S_IWUSR | S_IWGRP, mdss_livedisplay_get_hbm, mdss_livedisplay_set_hbm);
 static DEVICE_ATTR(srgb, S_IRUGO | S_IWUSR | S_IWGRP, mdss_livedisplay_get_srgb, mdss_livedisplay_set_srgb);
 static DEVICE_ATTR(dci_p3, S_IRUGO | S_IWUSR | S_IWGRP, mdss_livedisplay_get_dci_p3, mdss_livedisplay_set_dci_p3);
-static DEVICE_ATTR(DCI_P3, S_IRUGO | S_IWUSR | S_IWGRP, mdss_livedisplay_get_dci_p3, mdss_livedisplay_set_dci_p3);
 static DEVICE_ATTR(adobe_srgb, S_IRUGO | S_IWUSR | S_IWGRP, mdss_livedisplay_get_adobe_srgb, mdss_livedisplay_set_adobe_srgb);
 
 int mdss_livedisplay_parse_dt(struct device_node *np, struct mdss_panel_info *pinfo)
