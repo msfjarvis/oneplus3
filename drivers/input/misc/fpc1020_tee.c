@@ -52,8 +52,6 @@
 #include <linux/notifier.h>
 #endif
 
-extern bool s1302_is_keypad_stopped(void);
-
 static unsigned int ignor_home_for_ESD = 0;
 module_param(ignor_home_for_ESD, uint, S_IRUGO | S_IWUSR);
 
@@ -61,9 +59,6 @@ module_param(ignor_home_for_ESD, uint, S_IRUGO | S_IWUSR);
 #define FPC1020_RESET_HIGH1_US 100
 #define FPC1020_RESET_HIGH2_US 1250
 #define FPC_TTW_HOLD_TIME 1000
-
-/* Unused key value to avoid interfering with active keys */
-#define KEY_FINGERPRINT 0x2ee
 
 #define ONEPLUS_EDIT  //Onplus modify for msm8996 platform and 15801 HW
 
@@ -297,7 +292,14 @@ static ssize_t irq_ack(struct device* device,
 	return count;
 }
 static DEVICE_ATTR(irq, S_IRUSR | S_IWUSR, irq_get, irq_ack);
+extern void int_touch(void);
+extern struct completion key_cm;
 extern bool virtual_key_enable;
+extern bool s1302_is_keypad_stopped(void);
+extern void s3320_disable_gestures(bool disable);
+
+bool key_home_pressed = false;
+EXPORT_SYMBOL(key_home_pressed);
 
 static void set_fpc_irq(struct fpc1020_data *fpc1020, bool enable)
 {
@@ -321,18 +323,15 @@ static ssize_t report_home_set(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct  fpc1020_data *fpc1020 = dev_get_drvdata(dev);
-	bool ignore_keypad;
-
-	if (s1302_is_keypad_stopped() || virtual_key_enable)
-		ignore_keypad = true;
-	else
-		ignore_keypad = false;
+    unsigned long time;
 
 	if(ignor_home_for_ESD)
 		return -EINVAL;
 	if (!strncmp(buf, "down", strlen("down")))
 	{
-        if(!ignore_keypad){
+        if(virtual_key_enable){
+                key_home_pressed = true;
+        }else if (!s1302_is_keypad_stopped()) {
             input_report_key(fpc1020->input_dev,
                             KEY_HOME, 1);
             input_sync(fpc1020->input_dev);
@@ -340,22 +339,26 @@ static ssize_t report_home_set(struct device *dev,
 	}
 	else if (!strncmp(buf, "up", strlen("up")))
 	{
-        if(!ignore_keypad){
+        if(virtual_key_enable){
+                key_home_pressed = false;
+        }else{
             input_report_key(fpc1020->input_dev,
                             KEY_HOME, 0);
             input_sync(fpc1020->input_dev);
         }
 	}
-	else if (!strncmp(buf, "timeout", strlen("timeout")))
-	{
-		input_report_key(fpc1020->input_dev,KEY_F2,1);
-		input_sync(fpc1020->input_dev);
-		input_report_key(fpc1020->input_dev,KEY_F2,0);
-		input_sync(fpc1020->input_dev);
-	}
 	else
 		return -EINVAL;
-
+    if(virtual_key_enable){
+        if(!key_home_pressed){
+            reinit_completion(&key_cm);
+            time = wait_for_completion_timeout(&key_cm,msecs_to_jiffies(60));
+            if (!time)
+                int_touch();
+        }else{
+            int_touch();
+        }
+    }
 	return count;
 }
 static DEVICE_ATTR(report_home, S_IWUSR, NULL, report_home_set);
@@ -381,6 +384,7 @@ static ssize_t proximity_state_set(struct device *dev,
 		return -EINVAL;
 
 	fpc1020->proximity_state = !!val;
+	s3320_disable_gestures(fpc1020->proximity_state);
 
 	if (!fpc1020->screen_state)
 		set_fpc_irq(fpc1020, !fpc1020->proximity_state);
@@ -426,7 +430,6 @@ int fpc1020_input_init(struct fpc1020_data *fpc1020)
         set_bit(KEY_POWER, fpc1020->input_dev->keybit);
         set_bit(KEY_F2, fpc1020->input_dev->keybit);
         set_bit(KEY_HOME, fpc1020->input_dev->keybit);
-	set_bit(KEY_FINGERPRINT, fpc1020->input_dev->keybit);
 
 		/* Register the input device */
 		error = input_register_device(fpc1020->input_dev);
@@ -521,12 +524,6 @@ static irqreturn_t fpc1020_irq_handler(int irq, void *handle)
 		return IRQ_HANDLED;
 
 	wake_lock_timeout(&fpc1020->ttw_wl, msecs_to_jiffies(FPC_TTW_HOLD_TIME));
-
-	/* Report button input to trigger CPU boost */
-	input_report_key(fpc1020->input_dev, KEY_FINGERPRINT, 1);
-	input_sync(fpc1020->input_dev);
-	input_report_key(fpc1020->input_dev, KEY_FINGERPRINT, 0);
-	input_sync(fpc1020->input_dev);
 
 	return IRQ_HANDLED;
 }
@@ -652,7 +649,7 @@ static int fpc1020_probe(struct platform_device *pdev)
 		goto exit;
 	}
 	
-    #if 0
+    #if 0 //changhua remove HW reset here,move to HAL,after spi cs pin become high
 	rc = gpio_direction_output(fpc1020->rst_gpio, 1);
 
 	if (rc) {
@@ -670,6 +667,12 @@ static int fpc1020_probe(struct platform_device *pdev)
 	gpio_set_value(fpc1020->rst_gpio, 1);
 	udelay(FPC1020_RESET_HIGH2_US);
     #endif
+    /**
+    *           ID0(GPIO25)   ID1(GPIO143)
+    *   O-film   0            0
+    *   DT       0            1
+    *   CT       1            0
+    */
 
 	dev_info(dev, "%s: ok\n", __func__);
 exit:
