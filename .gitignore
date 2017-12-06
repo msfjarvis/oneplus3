@@ -99,3 +99,4 @@ all.config
 
 # Kernel compilation output directory
 out/
+net/wireguard/
