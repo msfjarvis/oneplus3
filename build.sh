@@ -83,7 +83,7 @@ function check_toolchain() {
     export TC="$(find ${TOOLCHAIN_DIR}/bin -type f -name *-gcc)";
 
         if [[ -f "${TC}" ]]; then
-                export CROSS_COMPILE="$(command -v ccache) ${TOOLCHAIN_DIR}/bin/$(echo ${TC} | awk -F '/' '{print $NF'} | sed -e 's/gcc//')";
+                export CROSS_COMPILE="${TOOLCHAIN_DIR}/bin/$(echo ${TC} | awk -F '/' '{print $NF'} | sed -e 's/gcc//')";
                 echoText "$Using toolchain: $(${CROSS_COMPILE}gcc --version | head -1)"
         else
                 reportError "No suitable toolchain found in ${TOOLCHAIN_DIR}";
