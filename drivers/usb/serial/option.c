@@ -273,6 +273,7 @@ static void option_instat_callback(struct urb *urb);
 #define TELIT_PRODUCT_LE922_USBCFG1		0x1040
 #define TELIT_PRODUCT_LE922_USBCFG2		0x1041
 #define TELIT_PRODUCT_ME910			0x1100
+#define TELIT_PRODUCT_ME910_DUAL_MODEM		0x1101
 #define TELIT_PRODUCT_LE920			0x1200
 #define TELIT_PRODUCT_LE910			0x1201
 #define TELIT_PRODUCT_LE910_USBCFG4		0x1206
@@ -618,6 +619,11 @@ static const struct option_blacklist_info zte_1255_blacklist = {
 static const struct option_blacklist_info telit_me910_blacklist = {
 	.sendsetup = BIT(0),
 	.reserved = BIT(1) | BIT(3),
+};
+
+static const struct option_blacklist_info telit_me910_dual_modem_blacklist = {
+	.sendsetup = BIT(0),
+	.reserved = BIT(3),
 };
 
 static const struct option_blacklist_info telit_le910_blacklist = {
@@ -1196,6 +1202,8 @@ static const struct usb_device_id option_ids[] = {
 		.driver_info = (kernel_ulong_t)&telit_le922_blacklist_usbcfg3 },
 	{ USB_DEVICE(TELIT_VENDOR_ID, TELIT_PRODUCT_ME910),
 		.driver_info = (kernel_ulong_t)&telit_me910_blacklist },
+	{ USB_DEVICE(TELIT_VENDOR_ID, TELIT_PRODUCT_ME910_DUAL_MODEM),
+		.driver_info = (kernel_ulong_t)&telit_me910_dual_modem_blacklist },
 	{ USB_DEVICE(TELIT_VENDOR_ID, TELIT_PRODUCT_LE910),
 		.driver_info = (kernel_ulong_t)&telit_le910_blacklist },
 	{ USB_DEVICE(TELIT_VENDOR_ID, TELIT_PRODUCT_LE910_USBCFG4),
