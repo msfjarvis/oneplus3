@@ -17,7 +17,7 @@ KERNEL="Image.gz-dtb"
 
 # Caesium Kernel Details
 KERNEL_NAME="Caesium"
-INCREMENTAL_VERSION="BumpyBlueberry"
+INCREMENTAL_VERSION="SensuousSapodillas"
 export LOCALVERSION=-${INCREMENTAL_VERSION}
 GIT_HASH=$(git rev-parse --short HEAD)
 DEVICE="oneplus3"
