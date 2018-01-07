@@ -97,6 +97,7 @@ x509.genkey
 # Kconfig presets
 all.config
 
-# Kernel compilation output directory
+# Kernel compilation artifacts
 out/
-net/wireguard/
+zips/
+*.txt
