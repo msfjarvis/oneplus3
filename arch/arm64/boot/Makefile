@@ -38,12 +38,14 @@ $(obj)/Image.gz: $(obj)/Image FORCE
 $(obj)/Image.gz-dtb: $(obj)/Image.gz $(DTB_OBJS) FORCE
 	$(call if_changed,cat)
 
+ifeq ($(BUILD_ARM64_UNCOMPRESSED_KERNEL),y)
 $(obj)/Image-dtb-hdr: $(obj)/Image FORCE
 	echo -n 'UNCOMPRESSED_IMG' > $@ && \
 	$(call size_append, $(filter-out FORCE,$^)) >> $@
 
 $(obj)/Image-dtb: $(obj)/Image-dtb-hdr $(obj)/Image $(DTB_OBJS) FORCE
 	$(call if_changed,cat)
+endif
 
 install: $(obj)/Image
 	$(CONFIG_SHELL) $(srctree)/$(src)/install.sh $(KERNELRELEASE) \

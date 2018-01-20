@@ -888,13 +888,13 @@ static int tfa98xx_i2c_probe(struct i2c_client *i2c,
 	struct tfa98xx *tfa98xx;
 	int ret;
 	struct device_node *np = i2c->dev.of_node;
-    int error = 0;
+	int error = 0;
 
-    pr_err("%s\n",__func__);
+	pr_err("%s\n",__func__);
 
 
-    if(np!=NULL)
-        tfa_codec_np =np;
+	if(np!=NULL)
+        	tfa_codec_np =np;
 
 	if (!i2c_check_functionality(i2c->adapter, I2C_FUNC_I2C)) {
 		dev_err(&i2c->dev, "check_functionality failed\n");
@@ -939,7 +939,7 @@ static int tfa98xx_i2c_probe(struct i2c_client *i2c,
 
 	INIT_WORK(&tfa98xx->init_work, tfa98xx_dsp_init);
 	INIT_WORK(&tfa98xx->stop_work, tfa98xx_stop);
-    tfa98xx->stop_ref = 0;
+	tfa98xx->stop_ref = 0;
 
 	/* register codec */
 	ret = snd_soc_register_codec(&i2c->dev, &tfa98xx_soc_codec,
@@ -953,16 +953,13 @@ static int tfa98xx_i2c_probe(struct i2c_client *i2c,
 
 
 	error = sysfs_create_file(&i2c->dev.kobj, &tfa98xx_state_attr.attr);
-    if(error < 0)
-    {
-        pr_err("%s sysfs_create_file tfa98xx_state_attr err.",__func__);
-    }
-/* zhiguang.su@MultiMedia.AudioDrv on 2015-11-09, add for debug*/
+	if (error < 0)
+		pr_err("%s sysfs_create_file tfa98xx_state_attr err.",__func__);
+
+	/* zhiguang.su@MultiMedia.AudioDrv on 2015-11-09, add for debug*/
 	error = sysfs_create_file(&i2c->dev.kobj, &tfa98xx_Log_state_attr.attr);
-    if(error < 0)
-    {
-        pr_err("%s sysfs_create_file tfa98xx_Log_state_attr err.",__func__);
-    }
+	if (error < 0)
+		pr_err("%s sysfs_create_file tfa98xx_Log_state_attr err.",__func__);
 
 	return ret;
 
@@ -971,7 +968,6 @@ codec_fail:
 gpio_fail:
 wq_fail:
 	snd_soc_unregister_codec(&i2c->dev);
-
 	return ret;
 }
 
