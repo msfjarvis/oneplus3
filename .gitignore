@@ -96,3 +96,10 @@ x509.genkey
 
 # Kconfig presets
 all.config
+
+
+# Caesium build system edits
+out/
+zips/
+build.sh
+*.txt
