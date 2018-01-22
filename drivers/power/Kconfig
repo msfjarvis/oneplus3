@@ -488,7 +488,7 @@ config BATTERY_BQ28400
 config QPNP_CHARGER
 	tristate "QPNP Charger driver"
 	depends on SPMI || MSM_SPMI
- 	depends on OF_SPMI
+	depends on OF_SPMI
 	depends on THERMAL_QPNP_ADC_TM
 	help
 	  Say Y here to enable the switch mode battery charger
@@ -647,6 +647,13 @@ config MSM_BCL_PERIPHERAL_CTL
 	  Say Y here to enable this BCL PMIC peripheral driver. This driver
 	  provides routines to configure and monitor the BCL
 	  PMIC peripheral.
+
+config FORCE_FAST_CHARGE
+        bool "Force power draw from normal charger to be 2500mA"
+        depends on QPNP_SMBCHARGER
+        help
+          Say Y here to enable normal charging to be run with 2500mA draw
+          rather than the normal 1500mA-1800mA range.
 
 source "drivers/power/reset/Kconfig"
 
