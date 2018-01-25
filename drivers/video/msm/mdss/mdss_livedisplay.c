@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2015 The CyanogenMod Project
+ * Copyright (C) 2017 The halogenOS Project
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -175,6 +176,20 @@ int mdss_livedisplay_update(struct mdss_dsi_ctrl_pdata *ctrl_pdata,
 			len += mlc->dci_p3_off_cmds_len;
 	}
 
+	if ((mlc->caps & MODE_ADOBE_SRGB) && (types & MODE_ADOBE_SRGB)) {
+		if (mlc->adobe_srgb_enabled)
+			len += mlc->adobe_srgb_on_cmds_len;
+		else if (types != MODE_UPDATE_ALL)
+			len += mlc->adobe_srgb_off_cmds_len;
+	}
+
+	if ((mlc->caps & MODE_ONEPLUS_NIGHT) && (types & MODE_ONEPLUS_NIGHT)) {
+		if (mlc->nightmode_enabled)
+			len += mlc->nightmode_on_cmds_len;
+		else if (types != MODE_UPDATE_ALL)
+			len += mlc->nightmode_off_cmds_len;
+	}
+
 	if (is_cabc_cmd(types) && is_cabc_cmd(mlc->caps)) {
 
 		// The CABC command on most modern panels is also responsible for
@@ -242,6 +257,28 @@ int mdss_livedisplay_update(struct mdss_dsi_ctrl_pdata *ctrl_pdata,
 		}
 	}
 
+	// DCI-P3 Mode
+	if ((mlc->caps & MODE_DCI_P3) && (types & MODE_DCI_P3)) {
+		if (mlc->dci_p3_enabled) {
+			memcpy(cmd_buf + dlen, mlc->dci_p3_on_cmds, mlc->dci_p3_on_cmds_len);
+			dlen += mlc->dci_p3_on_cmds_len;
+		} else if (types != MODE_UPDATE_ALL) {
+			memcpy(cmd_buf + dlen, mlc->dci_p3_off_cmds, mlc->dci_p3_off_cmds_len);
+			dlen += mlc->dci_p3_off_cmds_len;
+		}
+	}
+
+	// Adobe SRGB mode
+	if ((mlc->caps & MODE_ADOBE_SRGB) && (types & MODE_ADOBE_SRGB)) {
+		if (mlc->adobe_srgb_enabled) {
+			memcpy(cmd_buf + dlen, mlc->adobe_srgb_on_cmds, mlc->adobe_srgb_on_cmds_len);
+			dlen += mlc->dci_p3_on_cmds_len;
+		} else if (types != MODE_UPDATE_ALL) {
+			memcpy(cmd_buf + dlen, mlc->adobe_srgb_off_cmds, mlc->adobe_srgb_off_cmds_len);
+			dlen += mlc->adobe_srgb_off_cmds_len;
+		}
+	}
+
 	// SRGB mode
 	if ((mlc->caps & MODE_SRGB) && (types & MODE_SRGB)) {
 		if (mlc->srgb_enabled) {
@@ -253,14 +290,14 @@ int mdss_livedisplay_update(struct mdss_dsi_ctrl_pdata *ctrl_pdata,
 		}
 	}
 
-	// DCI-P3 mode
-	if ((mlc->caps & MODE_DCI_P3) && (types & MODE_DCI_P3)) {
-		if (mlc->dci_p3_enabled) {
-			memcpy(cmd_buf + dlen, mlc->dci_p3_on_cmds, mlc->dci_p3_on_cmds_len);
-			dlen += mlc->dci_p3_on_cmds_len;
+	// OnePlus Nightmode
+	if ((mlc->caps & MODE_ONEPLUS_NIGHT) && (types & MODE_ONEPLUS_NIGHT)) {
+		if (mlc->nightmode_enabled) {
+			memcpy(cmd_buf + dlen, mlc->nightmode_on_cmds, mlc->nightmode_on_cmds_len);
+			dlen += mlc->nightmode_on_cmds_len;
 		} else if (types != MODE_UPDATE_ALL) {
-			memcpy(cmd_buf + dlen, mlc->dci_p3_off_cmds, mlc->dci_p3_off_cmds_len);
-			dlen += mlc->dci_p3_off_cmds_len;
+			memcpy(cmd_buf + dlen, mlc->nightmode_off_cmds, mlc->nightmode_off_cmds_len);
+			dlen += mlc->nightmode_off_cmds_len;
 		}
 	}
 
@@ -306,7 +343,6 @@ int mdss_livedisplay_event(struct msm_fb_data_type *mfd, int types)
 		if (pdata->event_handler)
 			rc = pdata->event_handler(pdata, MDSS_EVENT_UPDATE_LIVEDISPLAY,
 					(void *)(unsigned long) types);
-		
 		pdata = pdata->next;
 	} while (!rc && pdata);
 
@@ -457,6 +493,62 @@ static ssize_t mdss_livedisplay_set_dci_p3(struct device *dev,
 	return count;
 }
 
+static ssize_t mdss_livedisplay_get_adobe_srgb(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct fb_info *fbi = dev_get_drvdata(dev);
+	struct msm_fb_data_type *mfd = (struct msm_fb_data_type *)fbi->par;
+	struct mdss_livedisplay_ctx *mlc = get_ctx(mfd);
+
+	return sprintf(buf, "%d\n", mlc->adobe_srgb_enabled);
+}
+
+static ssize_t mdss_livedisplay_set_adobe_srgb(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	int value = 0;
+	struct fb_info *fbi = dev_get_drvdata(dev);
+	struct msm_fb_data_type *mfd = (struct msm_fb_data_type *)fbi->par;
+	struct mdss_livedisplay_ctx *mlc = get_ctx(mfd);
+
+	sscanf(buf, "%du", &value);
+	if ((value == 0 || value == 1)
+			&& value != mlc->dci_p3_enabled) {
+		mlc->adobe_srgb_enabled = value;
+		mdss_livedisplay_event(mfd, MODE_ADOBE_SRGB);
+	}
+
+	return count;
+}
+
+static ssize_t mdss_livedisplay_get_oneplus_nightmode(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct fb_info *fbi = dev_get_drvdata(dev);
+	struct msm_fb_data_type *mfd = (struct msm_fb_data_type *)fbi->par;
+	struct mdss_livedisplay_ctx *mlc = get_ctx(mfd);
+
+	return sprintf(buf, "%d\n", mlc->nightmode_enabled);
+}
+
+static ssize_t mdss_livedisplay_set_oneplus_nightmode(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	int value = 0;
+	struct fb_info *fbi = dev_get_drvdata(dev);
+	struct msm_fb_data_type *mfd = (struct msm_fb_data_type *)fbi->par;
+	struct mdss_livedisplay_ctx *mlc = get_ctx(mfd);
+
+	sscanf(buf, "%du", &value);
+	if ((value == 0 || value == 1)
+			&& value != mlc->nightmode_enabled) {
+		mlc->nightmode_enabled = value;
+		mdss_livedisplay_event(mfd, MODE_ONEPLUS_NIGHT);
+	}
+
+	return count;
+}
+
 static ssize_t mdss_livedisplay_get_color_enhance(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
@@ -563,6 +655,8 @@ static DEVICE_ATTR(num_presets, S_IRUGO, mdss_livedisplay_get_num_presets, NULL)
 static DEVICE_ATTR(hbm, S_IRUGO | S_IWUSR | S_IWGRP, mdss_livedisplay_get_hbm, mdss_livedisplay_set_hbm);
 static DEVICE_ATTR(srgb, S_IRUGO | S_IWUSR | S_IWGRP, mdss_livedisplay_get_srgb, mdss_livedisplay_set_srgb);
 static DEVICE_ATTR(dci_p3, S_IRUGO | S_IWUSR | S_IWGRP, mdss_livedisplay_get_dci_p3, mdss_livedisplay_set_dci_p3);
+static DEVICE_ATTR(adobe_srgb, S_IRUGO | S_IWUSR | S_IWGRP, mdss_livedisplay_get_adobe_srgb, mdss_livedisplay_set_adobe_srgb);
+static DEVICE_ATTR(nightmode, S_IRUGO | S_IWUSR | S_IWGRP, mdss_livedisplay_get_oneplus_nightmode, mdss_livedisplay_set_oneplus_nightmode);
 
 int mdss_livedisplay_parse_dt(struct device_node *np, struct mdss_panel_info *pinfo)
 {
@@ -614,30 +708,48 @@ int mdss_livedisplay_parse_dt(struct device_node *np, struct mdss_panel_info *pi
 	}
 
 	mlc->hbm_on_cmds = of_get_property(np,
-			"cm,mdss-livedisplay-hbm-on-cmd", &mlc->hbm_on_cmds_len);
+			"qcom,mdss-dsi-panel-hbm-on-command", &mlc->hbm_on_cmds_len);
 	if (mlc->hbm_on_cmds_len) {
 		mlc->hbm_off_cmds = of_get_property(np,
-				"cm,mdss-livedisplay-hbm-off-cmd", &mlc->hbm_off_cmds_len);
+				"qcom,mdss-dsi-panel-hbm-off-command", &mlc->hbm_off_cmds_len);
 		if (mlc->hbm_off_cmds_len)
 			mlc->caps |= MODE_HIGH_BRIGHTNESS;
 	}
 
 	mlc->srgb_on_cmds = of_get_property(np,
-			"cm,mdss-livedisplay-srgb-on-cmd", &mlc->srgb_on_cmds_len);
+			"qcom,mdss-dsi-panel-srgb-on-command", &mlc->srgb_on_cmds_len);
 	if (mlc->srgb_on_cmds_len) {
 		mlc->srgb_off_cmds = of_get_property(np,
-				"cm,mdss-livedisplay-srgb-off-cmd", &mlc->srgb_off_cmds_len);
+				"qcom,mdss-dsi-panel-srgb-off-command", &mlc->srgb_off_cmds_len);
 		if (mlc->srgb_off_cmds_len)
 			mlc->caps |= MODE_SRGB;
 	}
 
 	mlc->dci_p3_on_cmds = of_get_property(np,
-			"cm,mdss-livedisplay-dci-p3-on-cmd", &mlc->dci_p3_on_cmds_len);
+			"qcom,mdss-dsi-panel-dci-p3-on-command", &mlc->dci_p3_on_cmds_len);
 	if (mlc->dci_p3_on_cmds_len) {
 		mlc->dci_p3_off_cmds = of_get_property(np,
-			"cm,mdss-livedisplay-dci-p3-off-cmd", &mlc->dci_p3_off_cmds_len);
+			"qcom,mdss-dsi-panel-dci-p3-off-command", &mlc->dci_p3_off_cmds_len);
 		if (mlc->dci_p3_off_cmds_len)
 			mlc->caps |= MODE_DCI_P3;
+	}
+
+	mlc->adobe_srgb_on_cmds = of_get_property(np,
+			"qcom,mdss-dsi-panel-Adobe-rgb-on-command", &mlc->adobe_srgb_on_cmds_len);
+	if (mlc->adobe_srgb_on_cmds_len) {
+		mlc->adobe_srgb_off_cmds = of_get_property(np,
+			"qcom,mdss-dsi-panel-Adobe-rgb-off-command", &mlc->adobe_srgb_off_cmds_len);
+		if (mlc->adobe_srgb_off_cmds_len)
+			mlc->caps |= MODE_ADOBE_SRGB;
+	}
+
+	mlc->nightmode_on_cmds = of_get_property(np,
+			"qcom,mdss-dsi-panel-night-mode-on-command", &mlc->nightmode_on_cmds_len);
+	if (mlc->nightmode_on_cmds_len) {
+		mlc->nightmode_off_cmds = of_get_property(np,
+			"qcom,mdss-dsi-panel-night-mode-off-command", &mlc->nightmode_off_cmds_len);
+		if (mlc->nightmode_off_cmds_len)
+			mlc->caps |= MODE_ONEPLUS_NIGHT;
 	}
 
 	mlc->ce_on_cmds = of_get_property(np,
@@ -714,6 +826,18 @@ int mdss_livedisplay_create_sysfs(struct msm_fb_data_type *mfd)
 
 	if (mlc->caps & MODE_DCI_P3) {
 		rc = sysfs_create_file(&mfd->fbi->dev->kobj, &dev_attr_dci_p3.attr);
+		if (rc)
+			goto sysfs_err;
+	}
+
+	if (mlc->caps & MODE_ADOBE_SRGB) {
+		rc = sysfs_create_file(&mfd->fbi->dev->kobj, &dev_attr_adobe_srgb.attr);
+		if (rc)
+			goto sysfs_err;
+	}
+
+	if (mlc->caps & MODE_ONEPLUS_NIGHT) {
+		rc = sysfs_create_file(&mfd->fbi->dev->kobj, &dev_attr_nightmode.attr);
 		if (rc)
 			goto sysfs_err;
 	}
