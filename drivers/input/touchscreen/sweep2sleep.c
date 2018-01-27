@@ -1,5 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
+
 #include <linux/module.h>
-#include <linux/kernel.h>    
+#include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/input.h>
 #include <linux/delay.h>
@@ -8,65 +10,63 @@
 #define DRIVER_AUTHOR "flar2 (asegaert at gmail.com)"
 #define DRIVER_DESCRIPTION "sweep2sleep driver"
 #define DRIVER_VERSION "4.0"
+#define TAG "Sweep2Sleep"
 
-MODULE_AUTHOR(DRIVER_AUTHOR);
-MODULE_DESCRIPTION(DRIVER_DESCRIPTION);
-MODULE_VERSION(DRIVER_VERSION);
-MODULE_LICENSE("GPL");
-
-//sweep2sleep
-#define S2S_PWRKEY_DUR          60
-#define S2S_Y_MAX             	1920
-#define S2S_Y_LIMIT             S2S_Y_MAX-180
+/* sweep2sleep */
+#define S2S_PWRKEY_DUR		60
+#define S2S_Y_MAX		1920
+#define S2S_Y_LIMIT		(S2S_Y_MAX-180)
 #define SWEEP_RIGHT		0x01
 #define SWEEP_LEFT		0x02
 #define VIB_STRENGTH		20
 
-extern void set_vibrate(int value);
-
-// 1=sweep right, 2=sweep left, 3=both
+/* Defaults for Sweep2Sleep
+   1 = sweep right
+   2 = sweep left
+   3 = both
+*/
 static int s2s_switch = 2;
 
-static int touch_x = 0, touch_y = 0, firstx = 0;
-static bool touch_x_called = false, touch_y_called = false;
-static bool scr_on_touch = false, barrier[2] = {false, false};
+static int touch_x, touch_y, firstx;
+static bool touch_x_called, touch_y_called;
+static bool scr_on_touch, barrier[2] = {false, false};
 static bool exec_count = true;
-static struct input_dev * sweep2sleep_pwrdev;
+static struct input_dev *sweep2sleep_pwrdev;
 static DEFINE_MUTEX(pwrkeyworklock);
 static struct workqueue_struct *s2s_input_wq;
 static struct work_struct s2s_input_work;
 static int vib_strength = VIB_STRENGTH;
 
-void sweep2sleep_setdev(struct input_dev * input_device) {
+void sweep2sleep_setdev(struct input_dev *input_device)
+{
 	sweep2sleep_pwrdev = input_device;
-	return;
 }
 
 /* PowerKey work func */
-static void sweep2sleep_presspwr(struct work_struct * sweep2sleep_presspwr_work) {
+static void sweep2sleep_presspwr(struct work_struct *sweep2sleep_presspwr_work)
+{
 
 	if (!mutex_trylock(&pwrkeyworklock))
-                return;
+		return;
 	input_event(sweep2sleep_pwrdev, EV_KEY, KEY_POWER, 1);
 	input_event(sweep2sleep_pwrdev, EV_SYN, 0, 0);
 	msleep(S2S_PWRKEY_DUR);
 	input_event(sweep2sleep_pwrdev, EV_KEY, KEY_POWER, 0);
 	input_event(sweep2sleep_pwrdev, EV_SYN, 0, 0);
 	msleep(S2S_PWRKEY_DUR);
-        mutex_unlock(&pwrkeyworklock);
-	return;
+	mutex_unlock(&pwrkeyworklock);
 }
 static DECLARE_WORK(sweep2sleep_presspwr_work, sweep2sleep_presspwr);
 
 /* PowerKey trigger */
-static void sweep2sleep_pwrtrigger(void) {
-	set_vibrate(vib_strength);
+static void sweep2sleep_pwrtrigger(void)
+{
 	schedule_work(&sweep2sleep_presspwr_work);
-        return;
 }
 
 /* reset on finger release */
-static void sweep2sleep_reset(void) {
+static void sweep2sleep_reset(void)
+{
 	exec_count = true;
 	barrier[0] = false;
 	barrier[1] = false;
@@ -77,8 +77,8 @@ static void sweep2sleep_reset(void) {
 /* Sweep2sleep main function */
 static void detect_sweep2sleep(int x, int y, bool st)
 {
-        int prevx = 0, nextx = 0;
-        bool single_touch = st;
+	int prevx = 0, nextx = 0;
+	bool single_touch = st;
 
 	if (firstx == 0)
 		firstx = x;
@@ -86,9 +86,9 @@ static void detect_sweep2sleep(int x, int y, bool st)
 	if (s2s_switch > 3)
 		s2s_switch = 3;
 
-	//left->right
+	/* left->right */
 	if (single_touch && firstx < 810 && (s2s_switch & SWEEP_RIGHT)) {
-		scr_on_touch=true;
+		scr_on_touch = true;
 		prevx = firstx;
 		nextx = prevx + 180;
 		if ((barrier[0] == true) ||
@@ -115,9 +115,9 @@ static void detect_sweep2sleep(int x, int y, bool st)
 				}
 			}
 		}
-	//right->left
+	/* right->left */
 	} else if (firstx >= 180 && (s2s_switch & SWEEP_LEFT)) {
-		scr_on_touch=true;
+		scr_on_touch = true;
 		prevx = firstx;
 		nextx = prevx - 180;
 		if ((barrier[0] == true) ||
@@ -148,15 +148,14 @@ static void detect_sweep2sleep(int x, int y, bool st)
 }
 
 
-static void s2s_input_callback(struct work_struct *unused) {
-
+static void s2s_input_callback(struct work_struct *unused)
+{
 	detect_sweep2sleep(touch_x, touch_y, true);
-
-	return;
 }
 
 static void s2s_input_event(struct input_handle *handle, unsigned int type,
-				unsigned int code, int value) {
+				unsigned int code, int value)
+{
 
 	if (code == ABS_MT_SLOT) {
 		sweep2sleep_reset();
@@ -185,16 +184,18 @@ static void s2s_input_event(struct input_handle *handle, unsigned int type,
 	}
 }
 
-static int input_dev_filter(struct input_dev *dev) {
-	if (strstr(dev->name, "synaptics")) {
+static int input_dev_filter(struct input_dev *dev)
+{
+	if (strncmp(dev->name, "synaptics", strlen(dev->name)))
 		return 0;
-	} else {
-		return 1;
-	}
+
+	return 1;
 }
 
 static int s2s_input_connect(struct input_handler *handler,
-				struct input_dev *dev, const struct input_device_id *id) {
+				struct input_dev *dev,
+				const struct input_device_id *id)
+{
 	struct input_handle *handle;
 	int error;
 
@@ -254,14 +255,13 @@ static ssize_t sweep2sleep_dump(struct device *dev,
 		return ret;
 
 	if (input < 0 || input > 3)
-		input = 0;				
+		input = 0;
 
-	s2s_switch = input;			
-	
+	s2s_switch = input;
 	return count;
 }
 
-static DEVICE_ATTR(sweep2sleep, (S_IWUSR|S_IRUGO),
+static DEVICE_ATTR(sweep2sleep, 0644,
 	sweep2sleep_show, sweep2sleep_dump);
 
 static ssize_t vib_strength_show(struct device *dev,
@@ -281,18 +281,18 @@ static ssize_t vib_strength_dump(struct device *dev,
 		return ret;
 
 	if (input < 0 || input > 90)
-		input = 20;				
+		input = 20;
 
-	vib_strength = input;			
-	
+	vib_strength = input;
+
 	return count;
 }
 
-static DEVICE_ATTR(vib_strength, (S_IWUSR|S_IRUGO),
+static DEVICE_ATTR(vib_strength, 0644,
 	vib_strength_show, vib_strength_dump);
 
 
-static struct kobject *sweep2sleep_kobj; 
+static struct kobject *sweep2sleep_kobj;
 
 static int __init sweep2sleep_init(void)
 {
@@ -300,41 +300,43 @@ static int __init sweep2sleep_init(void)
 
 	s2s_input_wq = create_workqueue("s2s_iwq");
 	if (!s2s_input_wq) {
-		pr_err("%s: Failed to create workqueue\n", __func__);
+		pr_err("%s: Failed to create workqueue\n", TAG);
 		return -EFAULT;
 	}
 	INIT_WORK(&s2s_input_work, s2s_input_callback);
 
 	rc = input_register_handler(&s2s_input_handler);
 	if (rc)
-		pr_err("%s: Failed to register s2s_input_handler\n", __func__);
+		pr_err("%s: Failed to register s2s_input_handler\n", TAG);
 
-	sweep2sleep_kobj = kobject_create_and_add("sweep2sleep", NULL) ;
-	if (sweep2sleep_kobj == NULL) {
-		pr_warn("%s: sweep2sleep_kobj failed\n", __func__);
-	}
+	sweep2sleep_kobj = kobject_create_and_add("sweep2sleep", NULL);
+	if (sweep2sleep_kobj == NULL)
+		pr_warn("%s: sweep2sleep_kobj failed\n", TAG);
 
 	rc = sysfs_create_file(sweep2sleep_kobj, &dev_attr_sweep2sleep.attr);
 	if (rc)
-		pr_err("%s: sysfs_create_file failed for sweep2sleep\n", __func__);
+		pr_err("%s: sysfs_create_file failed for sweep2sleep\n", TAG);
 
 	rc = sysfs_create_file(sweep2sleep_kobj, &dev_attr_vib_strength.attr);
 	if (rc)
-		pr_err("%s: sysfs_create_file failed for vib_strength\n", __func__);
+		pr_err("%s: sysfs_create_file failed for vib_strength\n", TAG);
 
 	return 0;
 }
 
 static void __exit sweep2sleep_exit(void)
 {
-	kobject_del(sweep2sleep_kobj); 
+	kobject_del(sweep2sleep_kobj);
 	input_unregister_handler(&s2s_input_handler);
 	destroy_workqueue(s2s_input_wq);
 	input_unregister_device(sweep2sleep_pwrdev);
 	input_free_device(sweep2sleep_pwrdev);
-
-	return;
 }
 
 module_init(sweep2sleep_init);
 module_exit(sweep2sleep_exit);
+
+MODULE_AUTHOR(DRIVER_AUTHOR);
+MODULE_DESCRIPTION(DRIVER_DESCRIPTION);
+MODULE_VERSION(DRIVER_VERSION);
+MODULE_LICENSE("GPL");
