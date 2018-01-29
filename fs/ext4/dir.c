@@ -26,6 +26,7 @@
 #include <linux/buffer_head.h>
 #include <linux/slab.h>
 #include <linux/rbtree.h>
+#include <linux/iversion.h>
 #include "ext4.h"
 #include "xattr.h"
 
