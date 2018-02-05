@@ -661,28 +661,28 @@ int mdss_livedisplay_parse_dt(struct device_node *np, struct mdss_panel_info *pi
 	}
 
 	mlc->hbm_on_cmds = of_get_property(np,
-			"qcom,mdss-dsi-panel-hbm-on-command", &mlc->hbm_on_cmds_len);
+			"cm,mdss-livedisplay-hbm-on-cmd", &mlc->hbm_on_cmds_len);
 	if (mlc->hbm_on_cmds_len) {
 		mlc->hbm_off_cmds = of_get_property(np,
-				"qcom,mdss-dsi-panel-hbm-off-command", &mlc->hbm_off_cmds_len);
+				"cm,mdss-livedisplay-hbm-off-cmd", &mlc->hbm_off_cmds_len);
 		if (mlc->hbm_off_cmds_len)
 			mlc->caps |= MODE_HIGH_BRIGHTNESS;
 	}
 
 	mlc->srgb_on_cmds = of_get_property(np,
-			"qcom,mdss-dsi-panel-srgb-on-command", &mlc->srgb_on_cmds_len);
+			"cm,mdss-livedisplay-srgb-on-cmd", &mlc->srgb_on_cmds_len);
 	if (mlc->srgb_on_cmds_len) {
 		mlc->srgb_off_cmds = of_get_property(np,
-				"qcom,mdss-dsi-panel-srgb-off-command", &mlc->srgb_off_cmds_len);
+				"cm,mdss-livedisplay-srgb-off-cmd", &mlc->srgb_off_cmds_len);
 		if (mlc->srgb_off_cmds_len)
 			mlc->caps |= MODE_SRGB;
 	}
 
 	mlc->dci_p3_on_cmds = of_get_property(np,
-			"qcom,mdss-dsi-panel-dci-p3-on-command", &mlc->dci_p3_on_cmds_len);
+			"cm,mdss-livedisplay-dci-p3-on-cmd", &mlc->dci_p3_on_cmds_len);
 	if (mlc->dci_p3_on_cmds_len) {
 		mlc->dci_p3_off_cmds = of_get_property(np,
-			"qcom,mdss-dsi-panel-dci-p3-off-command", &mlc->dci_p3_off_cmds_len);
+			"cm,mdss-livedisplay-dci-p3-off-cmd", &mlc->dci_p3_off_cmds_len);
 		if (mlc->dci_p3_off_cmds_len)
 			mlc->caps |= MODE_DCI_P3;
 	}
