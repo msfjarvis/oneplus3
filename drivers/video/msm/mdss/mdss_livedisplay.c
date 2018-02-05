@@ -176,13 +176,6 @@ int mdss_livedisplay_update(struct mdss_dsi_ctrl_pdata *ctrl_pdata,
 			len += mlc->dci_p3_off_cmds_len;
 	}
 
-	if ((mlc->caps & MODE_ADOBE_SRGB) && (types & MODE_ADOBE_SRGB)) {
-		if (mlc->adobe_srgb_enabled)
-			len += mlc->adobe_srgb_on_cmds_len;
-		else if (types != MODE_UPDATE_ALL)
-			len += mlc->adobe_srgb_off_cmds_len;
-	}
-
 	if ((mlc->caps & MODE_ONEPLUS_NIGHT) && (types & MODE_ONEPLUS_NIGHT)) {
 		if (mlc->nightmode_enabled)
 			len += mlc->nightmode_on_cmds_len;
@@ -265,17 +258,6 @@ int mdss_livedisplay_update(struct mdss_dsi_ctrl_pdata *ctrl_pdata,
 		} else if (types != MODE_UPDATE_ALL) {
 			memcpy(cmd_buf + dlen, mlc->dci_p3_off_cmds, mlc->dci_p3_off_cmds_len);
 			dlen += mlc->dci_p3_off_cmds_len;
-		}
-	}
-
-	// Adobe SRGB mode
-	if ((mlc->caps & MODE_ADOBE_SRGB) && (types & MODE_ADOBE_SRGB)) {
-		if (mlc->adobe_srgb_enabled) {
-			memcpy(cmd_buf + dlen, mlc->adobe_srgb_on_cmds, mlc->adobe_srgb_on_cmds_len);
-			dlen += mlc->dci_p3_on_cmds_len;
-		} else if (types != MODE_UPDATE_ALL) {
-			memcpy(cmd_buf + dlen, mlc->adobe_srgb_off_cmds, mlc->adobe_srgb_off_cmds_len);
-			dlen += mlc->adobe_srgb_off_cmds_len;
 		}
 	}
 
@@ -493,34 +475,6 @@ static ssize_t mdss_livedisplay_set_dci_p3(struct device *dev,
 	return count;
 }
 
-static ssize_t mdss_livedisplay_get_adobe_srgb(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-	struct fb_info *fbi = dev_get_drvdata(dev);
-	struct msm_fb_data_type *mfd = (struct msm_fb_data_type *)fbi->par;
-	struct mdss_livedisplay_ctx *mlc = get_ctx(mfd);
-
-	return sprintf(buf, "%d\n", mlc->adobe_srgb_enabled);
-}
-
-static ssize_t mdss_livedisplay_set_adobe_srgb(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t count)
-{
-	int value = 0;
-	struct fb_info *fbi = dev_get_drvdata(dev);
-	struct msm_fb_data_type *mfd = (struct msm_fb_data_type *)fbi->par;
-	struct mdss_livedisplay_ctx *mlc = get_ctx(mfd);
-
-	sscanf(buf, "%du", &value);
-	if ((value == 0 || value == 1)
-			&& value != mlc->dci_p3_enabled) {
-		mlc->adobe_srgb_enabled = value;
-		mdss_livedisplay_event(mfd, MODE_ADOBE_SRGB);
-	}
-
-	return count;
-}
-
 static ssize_t mdss_livedisplay_get_oneplus_nightmode(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
@@ -655,7 +609,6 @@ static DEVICE_ATTR(num_presets, S_IRUGO, mdss_livedisplay_get_num_presets, NULL)
 static DEVICE_ATTR(hbm, S_IRUGO | S_IWUSR | S_IWGRP, mdss_livedisplay_get_hbm, mdss_livedisplay_set_hbm);
 static DEVICE_ATTR(srgb, S_IRUGO | S_IWUSR | S_IWGRP, mdss_livedisplay_get_srgb, mdss_livedisplay_set_srgb);
 static DEVICE_ATTR(dci_p3, S_IRUGO | S_IWUSR | S_IWGRP, mdss_livedisplay_get_dci_p3, mdss_livedisplay_set_dci_p3);
-static DEVICE_ATTR(adobe_srgb, S_IRUGO | S_IWUSR | S_IWGRP, mdss_livedisplay_get_adobe_srgb, mdss_livedisplay_set_adobe_srgb);
 static DEVICE_ATTR(nightmode, S_IRUGO | S_IWUSR | S_IWGRP, mdss_livedisplay_get_oneplus_nightmode, mdss_livedisplay_set_oneplus_nightmode);
 
 int mdss_livedisplay_parse_dt(struct device_node *np, struct mdss_panel_info *pinfo)
@@ -732,15 +685,6 @@ int mdss_livedisplay_parse_dt(struct device_node *np, struct mdss_panel_info *pi
 			"qcom,mdss-dsi-panel-dci-p3-off-command", &mlc->dci_p3_off_cmds_len);
 		if (mlc->dci_p3_off_cmds_len)
 			mlc->caps |= MODE_DCI_P3;
-	}
-
-	mlc->adobe_srgb_on_cmds = of_get_property(np,
-			"qcom,mdss-dsi-panel-Adobe-rgb-on-command", &mlc->adobe_srgb_on_cmds_len);
-	if (mlc->adobe_srgb_on_cmds_len) {
-		mlc->adobe_srgb_off_cmds = of_get_property(np,
-			"qcom,mdss-dsi-panel-Adobe-rgb-off-command", &mlc->adobe_srgb_off_cmds_len);
-		if (mlc->adobe_srgb_off_cmds_len)
-			mlc->caps |= MODE_ADOBE_SRGB;
 	}
 
 	mlc->nightmode_on_cmds = of_get_property(np,
@@ -826,12 +770,6 @@ int mdss_livedisplay_create_sysfs(struct msm_fb_data_type *mfd)
 
 	if (mlc->caps & MODE_DCI_P3) {
 		rc = sysfs_create_file(&mfd->fbi->dev->kobj, &dev_attr_dci_p3.attr);
-		if (rc)
-			goto sysfs_err;
-	}
-
-	if (mlc->caps & MODE_ADOBE_SRGB) {
-		rc = sysfs_create_file(&mfd->fbi->dev->kobj, &dev_attr_adobe_srgb.attr);
 		if (rc)
 			goto sysfs_err;
 	}
