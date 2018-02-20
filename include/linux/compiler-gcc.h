@@ -262,3 +262,10 @@
  * code
  */
 #define uninitialized_var(x) x = x
+
+/*
+ * Show that FORTIFY_SOURCE is not supported by GCC 4.9.4 and earlier
+ */
+#if GCC_VERSION <= 40904
+#define __NO_FORTIFY
+#endif
