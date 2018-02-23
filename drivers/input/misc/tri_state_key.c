@@ -288,7 +288,7 @@ static ssize_t key_code_top_write(struct file *file, const char __user *page, si
 		return t;
 	}
 
-	if (kstrtoint(buf, 10, &data) == 0)
+	if (kstrtoint(buf, 10, &data) != 0)
 		return t;
 	if (data < KEYCODE_BASE || data >= (KEYCODE_BASE + TOTAL_KEYCODES))
 		return t;
@@ -330,7 +330,7 @@ static ssize_t key_code_middle_write(struct file *file, const char __user *page,
 		return t;
 	}
 
-	if (kstrtoint(buf, 10, &data) == 0)
+	if (kstrtoint(buf, 10, &data) != 0)
 		return t;
 	if (data < KEYCODE_BASE || data >= (KEYCODE_BASE + TOTAL_KEYCODES))
 		return t;
@@ -372,7 +372,7 @@ static ssize_t key_code_bottom_write(struct file *file, const char __user *page,
 		return t;
 	}
 
-	if (kstrtoint(buf, 10, &data) == 0)
+	if (kstrtoint(buf, 10, &data) != 0)
 		return t;
 	if (data < KEYCODE_BASE || data >= (KEYCODE_BASE + TOTAL_KEYCODES))
 		return t;
