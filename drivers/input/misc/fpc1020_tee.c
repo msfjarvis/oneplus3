@@ -60,9 +60,6 @@ module_param(ignor_home_for_ESD, uint, S_IRUGO | S_IWUSR);
 #define FPC1020_RESET_HIGH2_US 1250
 #define FPC_TTW_HOLD_TIME 1000
 
-/* Unused key value to avoid interfering with active keys */
-#define KEY_FINGERPRINT 0x2ee
-
 #define ONEPLUS_EDIT  //Onplus modify for msm8996 platform and 15801 HW
 
 struct fpc1020_data {
@@ -295,7 +292,6 @@ static ssize_t irq_ack(struct device* device,
 	return count;
 }
 static DEVICE_ATTR(irq, S_IRUSR | S_IWUSR, irq_get, irq_ack);
-extern bool virtual_key_enable;
 
 static void set_fpc_irq(struct fpc1020_data *fpc1020, bool enable)
 {
@@ -315,6 +311,7 @@ static void set_fpc_irq(struct fpc1020_data *fpc1020, bool enable)
 		disable_irq(gpio_to_irq(fpc1020->irq_gpio));
 }
 
+extern bool virtual_key_enable;
 static ssize_t report_home_set(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
@@ -418,7 +415,6 @@ int fpc1020_input_init(struct fpc1020_data *fpc1020)
         set_bit(KEY_POWER, fpc1020->input_dev->keybit);
         set_bit(KEY_F2, fpc1020->input_dev->keybit);
         set_bit(KEY_HOME, fpc1020->input_dev->keybit);
-	set_bit(KEY_FINGERPRINT, fpc1020->input_dev->keybit);
 
 		/* Register the input device */
 		error = input_register_device(fpc1020->input_dev);
@@ -443,7 +439,7 @@ void fpc1020_input_destroy(struct fpc1020_data *fpc1020)
 		input_free_device(fpc1020->input_dev);
 }
 
-static void set_fingerprintd_nice(int nice)
+static void set_fingerprint_hal_nice(int nice)
 {
 	struct task_struct *p;
 
@@ -462,16 +458,12 @@ static void fpc1020_suspend_resume(struct work_struct *work)
 	struct fpc1020_data *fpc1020 =
 		container_of(work, typeof(*fpc1020), pm_work);
 
+	/* Escalate fingerprintd priority when screen is off */
 	if (fpc1020->screen_state) {
 		set_fpc_irq(fpc1020, true);
-		set_fingerprintd_nice(0);
+		set_fingerprint_hal_nice(0);
 	} else {
-		/*
-		 * Elevate fingerprintd priority when screen is off to ensure
-		 * the fingerprint sensor is responsive and that the haptic
-		 * response on successful verification always fires.
-		 */
-		set_fingerprintd_nice(-1);
+		set_fingerprint_hal_nice(MIN_NICE);
 	}
 
 	sysfs_notify(&fpc1020->dev->kobj, NULL,
@@ -513,12 +505,6 @@ static irqreturn_t fpc1020_irq_handler(int irq, void *handle)
 		return IRQ_HANDLED;
 
 	wake_lock_timeout(&fpc1020->ttw_wl, msecs_to_jiffies(FPC_TTW_HOLD_TIME));
-
-	/* Report button input to trigger CPU boost */
-	input_report_key(fpc1020->input_dev, KEY_FINGERPRINT, 1);
-	input_sync(fpc1020->input_dev);
-	input_report_key(fpc1020->input_dev, KEY_FINGERPRINT, 0);
-	input_sync(fpc1020->input_dev);
 
 	return IRQ_HANDLED;
 }
