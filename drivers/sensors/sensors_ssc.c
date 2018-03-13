@@ -10,6 +10,7 @@
  * GNU General Public License for more details.
  */
 
+#include <asm/io.h>
 #include <linux/types.h>
 #include <linux/msm_dsps.h>
 #include <linux/module.h>
