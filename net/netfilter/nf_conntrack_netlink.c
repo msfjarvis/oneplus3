@@ -832,13 +832,8 @@ restart:
 	}
 out:
 	local_bh_enable();
-	if (last) {
-		/* nf ct hash resize happened, now clear the leftover. */
-		if ((struct nf_conn *)cb->args[1] == last)
-			cb->args[1] = 0;
-
+	if (last)
 		nf_ct_put(last);
-	}
 
 	return skb->len;
 }

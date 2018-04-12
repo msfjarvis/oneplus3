@@ -553,7 +553,7 @@ static inline void ci_role_destroy(struct ci_hdrc *ci)
 {
 	ci_hdrc_gadget_destroy(ci);
 	ci_hdrc_host_destroy(ci);
-	if (ci->is_otg && ci->roles[CI_ROLE_GADGET])
+	if (ci->is_otg)
 		ci_hdrc_otg_destroy(ci);
 }
 
@@ -654,28 +654,20 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 	/* initialize role(s) before the interrupt is requested */
 	if (dr_mode == USB_DR_MODE_OTG || dr_mode == USB_DR_MODE_HOST) {
 		ret = ci_hdrc_host_init(ci);
-		if (ret) {
-			if (ret == -ENXIO)
-				dev_info(dev, "doesn't support host\n");
-			else
-				goto deinit_phy;
-		}
+		if (ret)
+			dev_info(dev, "doesn't support host\n");
 	}
 
 	if (dr_mode == USB_DR_MODE_OTG || dr_mode == USB_DR_MODE_PERIPHERAL) {
 		ret = ci_hdrc_gadget_init(ci);
-		if (ret) {
-			if (ret == -ENXIO)
-				dev_info(dev, "doesn't support gadget\n");
-			else
-				goto deinit_host;
-		}
+		if (ret)
+			dev_info(dev, "doesn't support gadget\n");
 	}
 
 	if (!ci->roles[CI_ROLE_HOST] && !ci->roles[CI_ROLE_GADGET]) {
 		dev_err(dev, "no supported roles\n");
 		ret = -ENODEV;
-		goto deinit_gadget;
+		goto deinit_phy;
 	}
 
 	if (ci->is_otg && ci->roles[CI_ROLE_GADGET]) {
@@ -685,7 +677,7 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 		ret = ci_hdrc_otg_init(ci);
 		if (ret) {
 			dev_err(dev, "init otg fails, ret = %d\n", ret);
-			goto deinit_gadget;
+			goto stop;
 		}
 	}
 
@@ -736,12 +728,7 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 
 	free_irq(ci->irq, ci);
 stop:
-	if (ci->is_otg && ci->roles[CI_ROLE_GADGET])
-		ci_hdrc_otg_destroy(ci);
-deinit_gadget:
-	ci_hdrc_gadget_destroy(ci);
-deinit_host:
-	ci_hdrc_host_destroy(ci);
+	ci_role_destroy(ci);
 deinit_phy:
 	usb_phy_shutdown(ci->transceiver);
 

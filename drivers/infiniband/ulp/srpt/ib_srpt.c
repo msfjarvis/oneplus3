@@ -2986,8 +2986,12 @@ static void srpt_queue_response(struct se_cmd *cmd)
 	}
 	spin_unlock_irqrestore(&ioctx->spinlock, flags);
 
-	if (unlikely(WARN_ON_ONCE(state == SRPT_STATE_CMD_RSP_SENT)))
+	if (unlikely(transport_check_aborted_status(&ioctx->cmd, false)
+		     || WARN_ON_ONCE(state == SRPT_STATE_CMD_RSP_SENT))) {
+		atomic_inc(&ch->req_lim_delta);
+		srpt_abort_cmd(ioctx);
 		return;
+	}
 
 	dir = ioctx->cmd.data_direction;
 
