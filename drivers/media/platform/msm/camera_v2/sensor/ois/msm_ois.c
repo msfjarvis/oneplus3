@@ -165,7 +165,7 @@ static int32_t msm_ois_write_settings(struct msm_ois_ctrl_t *o_ctrl,
 			switch (settings[i].data_type) {
 			case MSM_CAMERA_I2C_BYTE_DATA:
 			case MSM_CAMERA_I2C_WORD_DATA:
-                o_ctrl->i2c_client.addr_type = settings[i].addr_type;
+				o_ctrl->i2c_client.addr_type = settings[i].addr_type;
 				rc = o_ctrl->i2c_client.i2c_func_tbl->i2c_write(
 					&o_ctrl->i2c_client,
 					settings[i].reg_addr,
@@ -202,16 +202,17 @@ static int32_t msm_ois_write_settings(struct msm_ois_ctrl_t *o_ctrl,
 				if (rc < 0)
 					return rc;
 				break;
-            case MSM_CAMERA_I2C_SEQ_DATA:
-                o_ctrl->i2c_client.addr_type = settings[i].addr_type;
-                rc = o_ctrl->i2c_client.i2c_func_tbl->
-                    i2c_write_seq(&o_ctrl->i2c_client,
-                    settings[i].reg_addr,
-                    settings[i].reg_data_seq,
-                    settings[i].reg_data_seq_size);
-                if (rc < 0)
-                    return rc;
-                break;
+			case MSM_CAMERA_I2C_SEQ_DATA:
+				o_ctrl->i2c_client.addr_type = settings[i].addr_type;
+				rc = o_ctrl->i2c_client.i2c_func_tbl->
+					i2c_write_seq(&o_ctrl->i2c_client,
+					settings[i].reg_addr,
+					settings[i].reg_data_seq,
+					settings[i].reg_data_seq_size);
+				if (rc < 0)
+					return rc;
+				break;
+
 			default:
 				pr_err("Unsupport data type: %d\n",
 					settings[i].data_type);
@@ -283,7 +284,7 @@ static int32_t msm_ois_power_down(struct msm_ois_ctrl_t *o_ctrl)
 {
 	int32_t rc = 0;
 	enum msm_sensor_power_seq_gpio_t gpio;
-	pr_info ("E\n");
+
 	CDBG("Enter\n");
 	if (o_ctrl->ois_state != OIS_DISABLE_STATE) {
 
@@ -400,6 +401,7 @@ static int32_t msm_ois_control(struct msm_ois_ctrl_t *o_ctrl,
 			pr_err("Error copying\n");
 			return -EFAULT;
 		}
+
 		if (set_info->ois_params.setting_size > 50 && !strncmp (o_ctrl->pdev->name, rohm63165_name, strlen (rohm63165_name))) {
 			while (true) {
 				value_after = value_before = 0;
@@ -671,7 +673,7 @@ static int32_t msm_ois_power_up(struct msm_ois_ctrl_t *o_ctrl)
 {
 	int rc = 0;
 	enum msm_sensor_power_seq_gpio_t gpio;
-	pr_info ("E\n");
+
 	CDBG("%s called\n", __func__);
 
 	rc = msm_ois_vreg_control(o_ctrl, 1);
@@ -932,15 +934,16 @@ static int32_t msm_ois_platform_probe(struct platform_device *pdev)
 
 	rc = msm_sensor_driver_get_gpio_data(&(msm_ois_t->gconf),
 		(&pdev->dev)->of_node);
-	if (rc < 0) {
-		pr_err("%s: No/Error OIS GPIO\n", __func__);
+	if (-ENODEV == rc) {
+		pr_notice("No valid OIS GPIOs data\n");
+	} else if (rc < 0) {
+		pr_err("Error OIS GPIO\n");
 	} else {
 		msm_ois_t->cam_pinctrl_status = 1;
 		rc = msm_camera_pinctrl_init(
 			&(msm_ois_t->pinctrl_info), &(pdev->dev));
 		if (rc < 0) {
-			pr_err("ERR:%s: Error in reading OIS pinctrl\n",
-				__func__);
+			pr_err("ERR: Error in reading OIS pinctrl\n");
 			msm_ois_t->cam_pinctrl_status = 0;
 		}
 	}
