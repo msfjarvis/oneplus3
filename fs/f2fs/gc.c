@@ -1008,8 +1008,8 @@ next_step:
 			if (IS_ERR(inode) || is_bad_inode(inode))
 				continue;
 
-			/* if encrypted inode, let's go phase 3 */
-			if (f2fs_encrypted_file(inode)) {
+			/* if inode uses special I/O path, let's go phase 3 */
+			if (f2fs_post_read_required(inode)) {
 				add_gc_inode(gc_list, inode);
 				continue;
 			}
@@ -1057,7 +1057,7 @@ next_step:
 
 			start_bidx = start_bidx_of_node(nofs, inode)
 								+ ofs_in_node;
-			if (f2fs_encrypted_file(inode))
+			if (f2fs_post_read_required(inode))
 				move_data_block(inode, start_bidx, segno, off);
 			else
 				move_data_page(inode, start_bidx, gc_type,
