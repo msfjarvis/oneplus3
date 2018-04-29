@@ -746,7 +746,7 @@ static int cpufreq_interactive_speedchange_task(void *data)
 			}
 
 			if (unlikely(!display_on)) {
-			    if (ppol->target_freq > tunables->screen_off_max)
+			    if (!(tunables->screen_off_max == 0) && ppol->target_freq > tunables->screen_off_max)
 				ppol->target_freq = tunables->screen_off_max;
 			}
 
@@ -1460,6 +1460,8 @@ static ssize_t store_screen_off_maxfreq(
 
 	if (val < 384000)
 		tunables->screen_off_max = DEFAULT_SCREEN_OFF_MAX;
+	else if (val == 0)
+		tunables->screen_off_max = 0;
 	else
 		tunables->screen_off_max = val;
 
