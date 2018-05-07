@@ -749,7 +749,7 @@ static bool is_alive(struct f2fs_sb_info *sbi, struct f2fs_summary *sum,
  * This can be used to move blocks, aka LBAs, directly on disk.
  */
 static void move_data_block(struct inode *inode, block_t bidx,
-					unsigned int segno, int off)
+				int gc_type, unsigned int segno, int off)
 {
 	struct f2fs_io_info fio = {
 		.sbi = F2FS_I_SB(inode),
@@ -777,8 +777,11 @@ static void move_data_block(struct inode *inode, block_t bidx,
 	if (!check_valid_map(F2FS_I_SB(inode), segno, off))
 		goto out;
 
-	if (f2fs_is_atomic_file(inode))
+	if (f2fs_is_atomic_file(inode)) {
+		F2FS_I(inode)->i_gc_failures[GC_FAILURE_ATOMIC]++;
+		F2FS_I_SB(inode)->skipped_atomic_files[gc_type]++;
 		goto out;
+	}
 
 	if (f2fs_is_pinned_file(inode)) {
 		f2fs_pin_file_control(inode, true);
@@ -890,8 +893,11 @@ static void move_data_page(struct inode *inode, block_t bidx, int gc_type,
 	if (!check_valid_map(F2FS_I_SB(inode), segno, off))
 		goto out;
 
-	if (f2fs_is_atomic_file(inode))
+	if (f2fs_is_atomic_file(inode)) {
+		F2FS_I(inode)->i_gc_failures[GC_FAILURE_ATOMIC]++;
+		F2FS_I_SB(inode)->skipped_atomic_files[gc_type]++;
 		goto out;
+	}
 	if (f2fs_is_pinned_file(inode)) {
 		if (gc_type == FG_GC)
 			f2fs_pin_file_control(inode, true);
@@ -1053,7 +1059,8 @@ next_step:
 			start_bidx = start_bidx_of_node(nofs, inode)
 								+ ofs_in_node;
 			if (f2fs_post_read_required(inode))
-				move_data_block(inode, start_bidx, segno, off);
+				move_data_block(inode, start_bidx, gc_type,
+								segno, off);
 			else
 				move_data_page(inode, start_bidx, gc_type,
 								segno, off);
@@ -1170,6 +1177,8 @@ int f2fs_gc(struct f2fs_sb_info *sbi, bool sync,
 		.ilist = LIST_HEAD_INIT(gc_list.ilist),
 		.iroot = RADIX_TREE_INIT(GFP_NOFS),
 	};
+	unsigned long long last_skipped = sbi->skipped_atomic_files[FG_GC];
+	unsigned int skipped_round = 0, round = 0;
 
 	trace_f2fs_gc_begin(sbi->sb, sync, background,
 				get_pages(sbi, F2FS_DIRTY_NODES),
@@ -1221,11 +1230,21 @@ gc_more:
 		sec_freed++;
 	total_freed += seg_freed;
 
+	if (gc_type == FG_GC) {
+		if (sbi->skipped_atomic_files[FG_GC] > last_skipped)
+			skipped_round++;
+		last_skipped = sbi->skipped_atomic_files[FG_GC];
+		round++;
+	}
+
 	if (gc_type == FG_GC)
 		sbi->cur_victim_sec = NULL_SEGNO;
 
 	if (!sync) {
 		if (has_not_enough_free_secs(sbi, sec_freed, 0)) {
+			if (skipped_round > MAX_SKIP_ATOMIC_COUNT &&
+				skipped_round * 2 >= round)
+				drop_inmem_pages_all(sbi, true);
 			segno = NULL_SEGNO;
 			goto gc_more;
 		}
