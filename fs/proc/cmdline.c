@@ -48,6 +48,12 @@ static void remove_safetynet_flags(char *cmd)
 
 static int __init proc_cmdline_init(void)
 {
+	char *offset_addr;
+
+	offset_addr = strstr(saved_command_line, "androidboot.mode=reboot");
+	if (offset_addr != NULL)
+		strncpy(offset_addr + 17, "normal", 6);
+
 	strcpy(new_command_line, saved_command_line);
 
 	/*
