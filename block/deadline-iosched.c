@@ -379,12 +379,13 @@ deadline_var_show(int var, char *page)
 	return sprintf(page, "%d\n", var);
 }
 
-static void
-deadline_var_store(int *var, const char *page)
+static ssize_t
+deadline_var_store(int *var, const char *page, size_t count)
 {
 	char *p = (char *) page;
 
 	*var = simple_strtol(p, &p, 10);
+	return count;
 }
 
 #define SHOW_FUNCTION(__FUNC, __VAR, __CONV)				\
@@ -408,7 +409,7 @@ static ssize_t __FUNC(struct elevator_queue *e, const char *page, size_t count)	
 {									\
 	struct deadline_data *dd = e->elevator_data;			\
 	int __data;							\
-	deadline_var_store(&__data, (page));				\
+	int ret = deadline_var_store(&__data, (page), count);		\
 	if (__data < (MIN))						\
 		__data = (MIN);						\
 	else if (__data > (MAX))					\
@@ -417,7 +418,7 @@ static ssize_t __FUNC(struct elevator_queue *e, const char *page, size_t count)	
 		*(__PTR) = msecs_to_jiffies(__data);			\
 	else								\
 		*(__PTR) = __data;					\
-	return count;							\
+	return ret;							\
 }
 STORE_FUNCTION(deadline_read_expire_store, &dd->fifo_expire[READ], 0, INT_MAX, 1);
 STORE_FUNCTION(deadline_write_expire_store, &dd->fifo_expire[WRITE], 0, INT_MAX, 1);
