@@ -8402,12 +8402,19 @@ wlan_hdd_thermal_cmd_get_temperature(struct wiphy *wiphy,
 		struct wireless_dev *wdev)
 {
 	eHalStatus status;
-	struct statsContext temp_context;
+	int ret;
 	unsigned long rc;
 	struct sk_buff *nl_resp = 0;
 	hdd_context_t *hdd_ctx = wiphy_priv(wiphy);
 	struct net_device *dev = wdev->netdev;
 	hdd_adapter_t *adapter = WLAN_HDD_GET_PRIV_PTR(dev);
+	void *cookie;
+	struct hdd_request *request;
+	struct temperature_info *priv = NULL;
+	static const struct hdd_request_params params = {
+		.priv_size = sizeof(*priv),
+		.timeout_ms = WLAN_WAIT_TIME_STATS,
+	};
 
 	if (VOS_FTM_MODE == hdd_get_conparam()) {
 		  hddLog(LOGE, FL("Command not allowed in FTM mode"));
@@ -8417,28 +8424,43 @@ wlan_hdd_thermal_cmd_get_temperature(struct wiphy *wiphy,
 	if (wlan_hdd_validate_context(hdd_ctx))
 		  return -EINVAL;
 
-	/* prepare callback context and magic pattern */
-	init_completion(&temp_context.completion);
-	temp_context.pAdapter = adapter;
-	temp_context.magic = TEMP_CONTEXT_MAGIC;
+	if (NULL == adapter)
+	{
+		hddLog(VOS_TRACE_LEVEL_ERROR,
+		       FL("adapter is NULL"));
+		return VOS_STATUS_E_FAULT;
+	}
+
+	request = hdd_request_alloc(&params);
+	if (!request) {
+		hddLog(VOS_TRACE_LEVEL_ERROR,
+		       "%s: Request allocation failure", __func__);
+		return VOS_STATUS_E_NOMEM;
+	}
+	cookie = hdd_request_cookie(request);
 
 	status = sme_GetTemperature(WLAN_HDD_GET_HAL_CTX(adapter),
-				&temp_context, hdd_GetTemperatureCB);
+				cookie, hdd_GetTemperatureCB);
 	if (eHAL_STATUS_SUCCESS != status) {
 		  hddLog(VOS_TRACE_LEVEL_ERROR, FL("Unable to get temperature"));
 	} else {
-		  rc = wait_for_completion_timeout(&temp_context.completion,
-				msecs_to_jiffies(1000));
-		  if (!rc) {
-			hddLog(VOS_TRACE_LEVEL_ERROR,
-				FL("SME timed out while getting temperature"));
-			return -EBUSY;
-		  }
+		/* request was sent -- wait for the response */
+		ret = hdd_request_wait_for_response(request);
+		if (ret) {
+			hddLog(VOS_TRACE_LEVEL_WARN,
+			       FL("timeout when get temperature"));
+			/* we'll returned a cached value below */
+		} else {
+			/* update the adapter with the fresh results */
+			priv = hdd_request_priv(request);
+			/* ignore it if this was 0 */
+			if (priv->temperature != 0)
+				adapter->temperature =
+						 priv->temperature;
+		}
 	}
 
-	spin_lock(&hdd_context_lock);
-	temp_context.magic = 0;
-	spin_unlock(&hdd_context_lock);
+	hdd_request_put(request);
 
 	nl_resp = cfg80211_vendor_cmd_alloc_reply_skb(wiphy, 4 + NLMSG_HDRLEN);
 	if (!nl_resp) {
@@ -22585,7 +22607,8 @@ int __wlan_hdd_cfg80211_scan( struct wiphy *wiphy,
              */
             if((WLAN_HDD_SOFTAP == pAdapter->device_mode) && \
                (pHddCtx->no_of_active_sessions[VOS_STA_SAP_MODE] >= 1) && \
-               (pHddCtx->no_of_open_sessions[VOS_STA_SAP_MODE] > 1)) {
+               (pHddCtx->no_of_open_sessions[VOS_STA_SAP_MODE] > 1) && \
+	       (!cfg_param->keeppassivedwelltime)) {
                 scanRequest.scanType = eSIR_ACTIVE_SCAN;
             }
             else {
@@ -30839,18 +30862,12 @@ static bool wlan_hdd_is_thermal_suspended(hdd_context_t *pHddCtx)
 	}
 	return false;
 }
-
-static VOS_STATUS wlan_hdd_suspend_mc_thread(pVosSchedContext vosSchedCtx,
-					hdd_context_t *pHddCtx)
-{
-	return VOS_STATUS_SUCCESS;
-}
 #else
 static bool wlan_hdd_is_thermal_suspended(hdd_context_t *pHddCtx)
 {
 	return false;
 }
-
+#endif
 static VOS_STATUS wlan_hdd_suspend_mc_thread(pVosSchedContext vosSchedCtx,
 					hdd_context_t *pHddCtx)
 {
@@ -30875,7 +30892,6 @@ static VOS_STATUS wlan_hdd_suspend_mc_thread(pVosSchedContext vosSchedCtx,
 	return VOS_STATUS_SUCCESS;
 }
 
-#endif
 /*
  * FUNCTION: __wlan_hdd_cfg80211_suspend_wlan
  * this is called when cfg80211 driver suspends
@@ -31025,11 +31041,14 @@ int __wlan_hdd_cfg80211_suspend_wlan(struct wiphy *wiphy,
        goto resume_tx;
     }
 
-    /* Suspend MC thread */
-    status = wlan_hdd_suspend_mc_thread(vosSchedContext, pHddCtx);
-    if (VOS_STATUS_SUCCESS != status)
-        goto resume_tx;
-
+    /* Suspend MC thread. In thermal suspend, MC thread should be alive
+     * to receive FW temperature data and compare to the threshold for resume.
+     */
+    if (!thermal) {
+        status = wlan_hdd_suspend_mc_thread(vosSchedContext, pHddCtx);
+        if (VOS_STATUS_SUCCESS != status)
+            goto resume_tx;
+    }
 #ifdef QCA_CONFIG_SMP
     /* Suspend tlshim rx thread */
     set_bit(RX_SUSPEND_EVENT, &vosSchedContext->tlshimRxEvtFlg);
@@ -31844,7 +31863,9 @@ wlan_hdd_cfg80211_extscan_signif_wifi_change_results_ind(
         for (j = 0; j < ap_info->numOfRssi; j++)
             hddLog(LOG1, "Rssi %d", *rssi++);
 
-        ap_info += ap_info->numOfRssi * sizeof(*rssi);
+        ap_info = (tSirWifiSignificantChange *)((char *)ap_info +
+                    ap_info->numOfRssi * sizeof(*rssi) +
+                    sizeof(*ap_info));
     }
 
     if (nla_put_u32(skb, QCA_WLAN_VENDOR_ATTR_EXTSCAN_RESULTS_REQUEST_ID,
@@ -31887,7 +31908,9 @@ wlan_hdd_cfg80211_extscan_signif_wifi_change_results_ind(
 
               nla_nest_end(skb, ap);
 
-            ap_info += ap_info->numOfRssi * sizeof(*rssi);
+            ap_info = (tSirWifiSignificantChange *)((char *)ap_info +
+                      ap_info->numOfRssi * sizeof(*rssi) +
+                      sizeof(*ap_info));
         }
         nla_nest_end(skb, aps);
 

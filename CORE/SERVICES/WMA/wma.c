@@ -1508,19 +1508,24 @@ static int wma_unified_debug_print_event_handler(void *handle, u_int8_t *datap,
 	u_int32_t datalen;
 
 	param_buf = (WMI_DEBUG_PRINT_EVENTID_param_tlvs *)datap;
-	if (!param_buf) {
+	if (!param_buf || !param_buf->data) {
 		WMA_LOGE("Get NULL point message from FW");
 		return -ENOMEM;
 	}
 	data = param_buf->data;
 	datalen = param_buf->num_data;
-
+	if (datalen > WMA_SVC_MSG_MAX_SIZE ) {
+		WMA_LOGE("Received data len %d exceeds max value %d",
+			 datalen, WMA_SVC_MSG_MAX_SIZE);
+		return -EINVAL;
+	}
+	data[datalen - 1] = '\0';
 #ifdef BIG_ENDIAN_HOST
 	{
-		if (datalen > BIG_ENDIAN_MAX_DEBUG_BUF) {
+		if (datalen >= BIG_ENDIAN_MAX_DEBUG_BUF) {
 			WMA_LOGE("%s Invalid data len %d, limiting to max",
 					__func__, datalen);
-			datalen = BIG_ENDIAN_MAX_DEBUG_BUF;
+			datalen = BIG_ENDIAN_MAX_DEBUG_BUF - 1;
 		}
 
 		char dbgbuf[BIG_ENDIAN_MAX_DEBUG_BUF] = { 0 };
@@ -4746,12 +4751,12 @@ static int wma_extscan_change_results_event_handler(void *handle,
 	tSirWifiSignificantChange  *dest_ap;
 	wmi_extscan_wlan_change_result_bssid    *src_chglist;
 
-	int numap;
+	uint32_t numap;
 	int i, k;
 	u_int8_t *src_rssi;
 	int count = 0;
 	int moredata;
-	int rssi_num = 0;
+	uint32_t rssi_num = 0;
 	u_int32_t buf_len;
 	bool excess_data = false;
 	tpAniSirGlobal pMac = (tpAniSirGlobal )vos_get_context(
@@ -4780,8 +4785,17 @@ static int wma_extscan_change_results_event_handler(void *handle,
 		return -EINVAL;
 	}
 	for (i = 0; i < numap; i++) {
+		if (src_chglist->num_rssi_samples > (UINT_MAX - rssi_num)) {
+			WMA_LOGE("%s: Invalid num of rssi samples %d numap %d rssi_num %d",
+				 __func__, src_chglist->num_rssi_samples,
+				 numap, rssi_num);
+			return -EINVAL;
+		}
 		rssi_num += src_chglist->num_rssi_samples;
+		src_chglist++;
 	}
+	src_chglist = param_buf->bssid_signal_descriptor_list;
+
 	if (event->first_entry_index +
 		event->num_entries_in_page < event->total_entries)
 		moredata = 1;
@@ -4832,12 +4846,14 @@ static int wma_extscan_change_results_event_handler(void *handle,
 							src_rssi[count++];
 			}
 		}
-		dest_ap += dest_ap->numOfRssi * sizeof(tANI_S32);
+		dest_ap = (tSirWifiSignificantChange *)((char *)dest_ap +
+				dest_ap->numOfRssi * sizeof(tANI_S32) +
+				sizeof(*dest_ap));
 		src_chglist++;
 	}
 	dest_chglist->requestId = event->request_id;
 	dest_chglist->moreData = moredata;
-	dest_chglist->numResults = event->total_entries;
+	dest_chglist->numResults = numap;
 
 	pMac->sme.pExtScanIndCb(pMac->hHdd,
 				eSIR_EXTSCAN_SIGNIFICANT_WIFI_CHANGE_RESULTS_IND,
@@ -9512,7 +9528,8 @@ VOS_STATUS WDA_open(v_VOID_t *vos_context, v_VOID_t *os_ctx,
 
 	mac_params->maxBssId = WMA_MAX_SUPPORTED_BSS;
 	mac_params->frameTransRequired = 0;
-
+	wma_handle->keep_dwell_time_passive =
+		mac_params->keep_dwell_time_passive;
 #ifdef WLAN_FEATURE_LPSS
 	wma_handle->is_lpass_enabled = mac_params->is_lpass_enabled;
 #endif
@@ -11139,14 +11156,34 @@ static ol_txrx_vdev_handle wma_vdev_attach(tp_wma_handle wma_handle,
 							&cfg_val) == eSIR_SUCCESS) {
 		val16 = (tANI_U16)cfg_val;
 		phtCapInfo = (tSirMacHTCapabilityInfo *)&cfg_val;
+
 		ret = wmi_unified_vdev_set_param_send(wma_handle->wmi_handle,
-								self_sta_req->sessionId,
-								WMI_VDEV_PARAM_TX_STBC,
-								phtCapInfo->txSTBC);
+				self_sta_req->sessionId,
+				WMI_VDEV_PARAM_TX_STBC,
+				phtCapInfo->txSTBC);
 		if (ret)
 			WMA_LOGE("Failed to set WMI_VDEV_PARAM_TX_STBC");
+
+		WMA_LOGD("set WMI_VDEV_PARAM_LDPC,phtCapInfo->advCodingCap %u",
+				phtCapInfo->advCodingCap);
+		ret = wmi_unified_vdev_set_param_send(wma_handle->wmi_handle,
+				self_sta_req->sessionId,
+				WMI_VDEV_PARAM_LDPC,
+				phtCapInfo->advCodingCap);
+		if (ret)
+			WMA_LOGE("Failed to set WMI_VDEV_PARAM_LDPC");
+
+		WMA_LOGD("set WMI_VDEV_PARAM_SGI,shortGI20MHz %u shortGI40MHz %u",
+			phtCapInfo->shortGI20MHz, phtCapInfo->shortGI40MHz);
+		ret = wmi_unified_vdev_set_param_send(wma_handle->wmi_handle,
+				self_sta_req->sessionId,
+				WMI_VDEV_PARAM_SGI,
+				phtCapInfo->shortGI20MHz|
+					phtCapInfo->shortGI40MHz);
+		if (ret)
+			WMA_LOGE("Failed to set WMI_VDEV_PARAM_SGI");
 	} else {
-		WMA_LOGE("Failed to get value of HT_CAP, TX STBC unchanged");
+		WMA_LOGE("Failed to get value of HT_CAP, TX STBC/LDPC/SGI unchanged");
 	}
 
 	wma_set_vdev_mgmt_rate(wma_handle, self_sta_req->sessionId);
@@ -11382,6 +11419,25 @@ static bool wma_is_mcc_starting(WMA_HANDLE handle, A_UINT32 starting_mhz)
 	return false;
 }
 
+/**
+ * wma_keep_dwell_time_passive() - Check passive dwell time can change or not.
+ * Keep passive dwell time only when ini keep_dwell_time_passwive is set as 1
+ * and interface is not started.
+ * @wma_handle: wma handler
+ * @vdev_id: vdev id
+ *
+ * Return: True if passive dwell time should be kept, false otherwise.
+ */
+static v_BOOL_t wma_keep_dwell_time_passive(tp_wma_handle wma_handle,
+					    u_int8_t vdev_id)
+{
+	if (wma_handle->keep_dwell_time_passive &&
+	    (!wma_handle->interfaces[vdev_id].vdev_up))
+		return true;
+
+	return false;
+}
+
 /* function   : wma_get_buf_start_scan_cmd
  * Description :
  * Args       :
@@ -11583,7 +11639,14 @@ VOS_STATUS wma_get_buf_start_scan_cmd(tp_wma_handle wma_handle,
 		                    WMA_3PORT_CONC_SCAN_MAX_BURST_DURATION;
 		        break;
 		    }
-		    if (wma_is_SAP_active(wma_handle)) {
+		    /*
+		     * Background SAP can't send probe request before peer is
+		     * created. To make sure passive scan work well, keep
+		     * passive dwell time.
+		     */
+		    if (wma_is_SAP_active(wma_handle) &&
+		        (!wma_keep_dwell_time_passive(wma_handle,
+		        scan_req->sessionId))) {
 			/* Background scan while SoftAP is sending beacons.
 			 * Max duration of CTS2self is 32 ms, which limits
 			 * the dwell time.
@@ -38880,10 +38943,20 @@ VOS_STATUS WDA_TxPacket(void *wma_context, void *tx_frame, u_int16_t frmLen,
 		adf_os_mem_set(skb->cb, 0, sizeof(skb->cb));
 
 		/* Do the DMA Mapping */
-		adf_nbuf_map_single(pdev->osdev, skb, ADF_OS_DMA_TO_DEVICE);
+		vos_status = adf_nbuf_map_single(pdev->osdev, skb, ADF_OS_DMA_TO_DEVICE);
 
 		/* Terminate the (single-element) list of tx frames */
 		skb->next = NULL;
+
+		if (vos_status) {
+			WMA_LOGE("TxRx DMA mapping failed");
+			/* Call Download Cb so that umac can free the buffer */
+			if (tx_frm_download_comp_cb)
+				tx_frm_download_comp_cb(wma_handle->mac_context,
+							tx_frame,
+							WMA_TX_FRAME_BUFFER_FREE);
+			return VOS_STATUS_E_FAILURE;
+		}
 
 		/* Store the Ack Complete Cb */
 		wma_handle->umac_data_ota_ack_cb = tx_frm_ota_comp_cb;

@@ -2282,7 +2282,7 @@ typedef enum
 #define CFG_THERMAL_SHUTDOWN_ENABLE_NAME      "gThermalShutdownEnable"
 #define CFG_THERMAL_SHUTDOWN_ENABLE_MIN       ( 0 )
 #define CFG_THERMAL_SHUTDOWN_ENABLE_MAX       ( 1 )
-#define CFG_THERMAL_SHUTDOWN_ENABLE_DEFAULT   ( 1 )
+#define CFG_THERMAL_SHUTDOWN_ENABLE_DEFAULT   ( 0 )
 
 /*
  * <ini>
@@ -3537,6 +3537,11 @@ This feature requires the dependent cfg.ini "gRoamPrefer5GHz" set to 1 */
 #define CFG_ENABLE_SIFS_BURST_MIN                  ( 0 )
 #define CFG_ENABLE_SIFS_BURST_MAX                  (3)
 #define CFG_ENABLE_SIFS_BURST_DEFAULT              ( 0 )
+
+#define CFG_KEEP_PASSIVE_DWELL_TIME                       "gKeepPassiveDwellTime"
+#define CFG_KEEP_PASSIVE_DWELL_TIME_DEFAULT               ( 0 )
+#define CFG_KEEP_PASSIVE_DWELL_TIME_MIN                   ( 0 )
+#define CFG_KEEP_PASSIVE_DWELL_TIME_MAX                   ( 1 )
 
 #ifdef WLAN_FEATURE_LPSS
 #define CFG_ENABLE_LPASS_SUPPORT                          "gEnableLpassSupport"
@@ -5953,6 +5958,7 @@ struct hdd_config {
 #endif /* WLAN_LOGGING_SOCK_SVC_ENABLE */
 
    v_U8_t                      enableSifsBurst;
+   v_BOOL_t                    keeppassivedwelltime;
 
 #ifdef WLAN_FEATURE_LPSS
    v_BOOL_t                    enablelpasssupport;
