@@ -6592,9 +6592,10 @@ select_task_rq_fair(struct task_struct *p, int prev_cpu, int sd_flag, int wake_f
 	if (sched_enable_hmp)
 		return select_best_cpu(p, prev_cpu, 0, sync);
 
-	if (sd_flag & SD_BALANCE_WAKE)
+	if (sd_flag & SD_BALANCE_WAKE) {
 		record_wakee(p);
 		want_affine = cpumask_test_cpu(cpu, tsk_cpus_allowed(p));
+        }
 
 	rcu_read_lock();
 	for_each_domain(cpu, tmp) {
