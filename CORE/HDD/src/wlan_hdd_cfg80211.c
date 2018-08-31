@@ -4168,6 +4168,11 @@ static int hdd_extscan_start_fill_bucket_channel_spec(
 			total_channels++;
 		}
 
+		if (j != pReqMsg->buckets[bktIndex].numChannels) {
+			hddLog(LOG1, FL("Input parameters didn't match"));
+			return -EINVAL;
+		}
+
 		hdd_extscan_update_dwell_time_limits(
 					pReqMsg, bktIndex,
 					min_dwell_time_active_bucket,
@@ -9868,6 +9873,13 @@ static int __wlan_hdd_cfg80211_do_acs(struct wiphy *wiphy,
 	status = wlan_hdd_validate_context(hdd_ctx);
 	if (0 != status)
 		return status;
+
+	if (!((adapter->device_mode == WLAN_HDD_SOFTAP) ||
+	      (adapter->device_mode == WLAN_HDD_P2P_GO))) {
+		hddLog(LOGE, FL("Invalid device mode %d"),
+		       adapter->device_mode);
+		return -EINVAL;
+	}
 
 	if (hdd_cfg_is_static_sub20_channel_width_enabled(hdd_ctx)) {
 		hddLog(LOGE, FL("ACS not support if static sub20 enable"));

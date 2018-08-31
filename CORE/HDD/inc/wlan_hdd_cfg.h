@@ -2396,6 +2396,25 @@ typedef enum
 
 /*
  * <ini>
+ * gRemoveTimeStampSyncCmd - Enable/Disable to remove time stamp sync cmd
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * This ini is used to enable/disable the removal of time stamp sync cmd
+ *
+ * Usage: External
+ *
+ * </ini>
+ */
+
+#define CFG_REMOVE_TIME_STAMP_SYNC_CMD_NAME      "gRemoveTimeStampSyncCmd"
+#define CFG_REMOVE_TIME_STAMP_SYNC_CMD_MIN       ( 0 )
+#define CFG_REMOVE_TIME_STAMP_SYNC_CMD_MAX       ( 1 )
+#define CFG_REMOVE_TIME_STAMP_SYNC_CMD_DEFAULT   ( 0 )
+
+/*
+ * <ini>
  * gDPDRecalibEnable - Enable/Disable Runtime DPD Recaliberation feature
  * 		       The parameter ‘enable’ in WMI is used to enable
  *		       feature and debug log. Set bit0 to enable feature,
@@ -5300,6 +5319,27 @@ FG_BTC_BT_INTERVAL_PAGE_P2P_STA_DEFAULT
 
 /*
  * <ini>
+ * gSkipCrashInject - skip crash inject
+ * @Min: 0
+ * @Max: 1
+ * @Default: 0
+ *
+ * This ini is used to skip crash inject or not
+ *
+ * Related: None
+ *
+ * Usage: Internal/External
+ *
+ * </ini>
+ */
+
+#define CFG_SKIP_CRASH_INJECT_NAME      "gSkipCrashInject"
+#define CFG_SKIP_CRASH_INJECT_MIN       (0)
+#define CFG_SKIP_CRASH_INJECT_MAX       (1)
+#define CFG_SKIP_CRASH_INJECT_DEFAULT   (0)
+
+/*
+ * <ini>
  * gEnableMonOnSta - extend the monitor capability for STA
  * @Min: 0
  * @Max: 1
@@ -5833,7 +5873,6 @@ struct hdd_config {
    uint16_t                     thermal_suspend_threshold;
    uint16_t                     thermal_sample_rate;
 #endif
-
    v_U32_t                     TxPower2g;
    v_U32_t                     TxPower5g;
    v_U32_t                     gEnableDebugLog;
@@ -5855,6 +5894,7 @@ struct hdd_config {
    uint8_t                     rate_for_tx_mgmt;
    uint8_t                     rate_for_tx_mgmt_2g;
    uint8_t                     rate_for_tx_mgmt_5g;
+   uint8_t                     remove_time_stamp_sync_cmd;
 #ifdef QCA_LL_TX_FLOW_CT
    v_U32_t                     TxFlowLowWaterMark;
    v_U32_t                     TxFlowHighWaterMarkOffset;
@@ -6232,6 +6272,7 @@ struct hdd_config {
    bool      cca_threshold_enable;
    uint32_t  cca_threshold_2g;
    uint32_t  cca_threshold_5g;
+   uint8_t                     skip_crash_inject;
    uint8_t                     mon_on_sta_enable;
 #ifdef WLAN_FEATURE_SAP_TO_FOLLOW_STA_CHAN
    uint32_t                    sap_ch_switch_with_csa;

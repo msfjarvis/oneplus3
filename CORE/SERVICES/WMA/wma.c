@@ -8739,7 +8739,7 @@ static int wma_stats_ext_event_handler(void *handle, u_int8_t *event_buf,
 	alloc_len += stats_ext_info->data_len;
 
 	if (stats_ext_info->data_len > (WMA_SVC_MSG_MAX_SIZE -
-	    sizeof(*stats_ext_info)) ||
+	    WMI_TLV_HDR_SIZE - sizeof(*stats_ext_info)) ||
 	    stats_ext_info->data_len > param_buf->num_data) {
 		WMA_LOGE("Excess data_len:%d", stats_ext_info->data_len);
 		VOS_ASSERT(0);
@@ -26711,6 +26711,8 @@ static VOS_STATUS wma_send_host_wakeup_ind_to_fw(tp_wma_handle wma)
 	int32_t len;
 	int ret;
 #ifdef CONFIG_CNSS
+	tSirRetStatus nSirStatus;
+	uint32_t cfg_val = 0;
 	struct ol_softc *scn =
 		vos_get_context(VOS_MODULE_ID_HIF, wma->vos_context);
 	tpAniSirGlobal pMac = (tpAniSirGlobal)vos_get_context(VOS_MODULE_ID_PE,
@@ -26763,8 +26765,18 @@ static VOS_STATUS wma_send_host_wakeup_ind_to_fw(tp_wma_handle wma)
 		if (!vos_is_logp_in_progress(VOS_MODULE_ID_WDA, NULL)) {
 #ifdef CONFIG_CNSS
 			if (pMac->sme.enableSelfRecovery) {
-				wmi_tag_crash_inject(wma->wmi_handle, true);
-				vos_trigger_recovery(false);
+				nSirStatus = wlan_cfgGetInt(pMac,
+					WNI_CFG_SKIP_CRASH_INJECT, &cfg_val);
+				if (nSirStatus == eSIR_SUCCESS &&
+					cfg_val != 0) {
+					wmi_tag_crash_inject(wma->wmi_handle,
+								false);
+					vos_trigger_recovery(true);
+				} else {
+					wmi_tag_crash_inject(wma->wmi_handle,
+								true);
+					vos_trigger_recovery(false);
+				}
 			} else {
 				if (scn && scn->adf_dev)
 					vos_device_crashed(scn->adf_dev->dev);
@@ -37095,6 +37107,8 @@ VOS_STATUS wma_start(v_VOID_t *vos_ctx)
 	VOS_STATUS vos_status = VOS_STATUS_SUCCESS;
 	tp_wma_handle wma_handle;
 	int status;
+	struct sAniSirGlobal *mac;
+	uint32_t cfg_val;
 	WMA_LOGD("%s: Enter", __func__);
 
 	wma_handle = vos_get_context(VOS_MODULE_ID_WDA, vos_ctx);
@@ -37106,6 +37120,14 @@ VOS_STATUS wma_start(v_VOID_t *vos_ctx)
 		goto end;
 	}
 
+	mac = (struct sAniSirGlobal*)vos_get_context(VOS_MODULE_ID_PE,
+			wma_handle->vos_context);
+
+	if (NULL == mac) {
+		WMA_LOGE("%s: Failed to get mac", __func__);
+		vos_status = VOS_STATUS_E_INVAL;
+		goto end;
+	}
 
 	status = wmi_unified_register_event_handler(wma_handle->wmi_handle,
 						WMI_SCAN_EVENTID,
@@ -37288,19 +37310,25 @@ VOS_STATUS wma_start(v_VOID_t *vos_ctx)
 		WMA_LOGP("%s: Failed to register tx management", __func__);
 		goto end;
 	}
-	if (VOS_FTM_MODE != vos_get_conparam()) {
-		/* Initialize firmware time stamp sync timer */
-	    vos_status = vos_timer_init(&wma_handle->wma_fw_time_sync_timer,
-	                                VOS_TIMER_TYPE_SW,
-	                                wma_send_time_stamp_sync_cmd,
-	                                wma_handle);
-	    if (vos_status != VOS_STATUS_SUCCESS)
-			WMA_LOGE(FL("Failed to initialize firmware time stamp sync timer"));
 
-	    /* Start firmware time stamp sync timer */
-	    wma_send_time_stamp_sync_cmd(wma_handle);
+	if (wlan_cfgGetInt(mac, WNI_CFG_REMOVE_TIME_SYNC_CMD,
+				   &cfg_val) == eSIR_SUCCESS) {
+		if (cfg_val == 0 && VOS_FTM_MODE != vos_get_conparam()) {
+			/* Initialize firmware time stamp sync timer */
+		    vos_status = vos_timer_init(
+		                   &wma_handle->wma_fw_time_sync_timer,
+		                   VOS_TIMER_TYPE_SW,
+		                   wma_send_time_stamp_sync_cmd,
+		                   wma_handle);
+		    if (vos_status != VOS_STATUS_SUCCESS) {
+				WMA_LOGE(FL("Failed to initialize firmware"
+					"time stamp sync timer"));
+		    }
+
+		    /* Start firmware time stamp sync timer */
+		    wma_send_time_stamp_sync_cmd(wma_handle);
+		}
 	}
-
 	/* Initialize scan completion timeout */
 	vos_status = vos_timer_init(&wma_handle->wma_scan_comp_timer,
 					VOS_TIMER_TYPE_SW,
@@ -37405,6 +37433,8 @@ VOS_STATUS wma_stop(v_VOID_t *vos_ctx, tANI_U8 reason)
 	tp_wma_handle wma_handle;
 	VOS_STATUS vos_status = VOS_STATUS_SUCCESS;
 	int i;
+	struct sAniSirGlobal *mac;
+	uint32_t cfg_val;
 
 	wma_handle = vos_get_context(VOS_MODULE_ID_WDA, vos_ctx);
 
@@ -37413,6 +37443,15 @@ VOS_STATUS wma_stop(v_VOID_t *vos_ctx, tANI_U8 reason)
 	/* validate the wma_handle */
 	if (NULL == wma_handle) {
 		WMA_LOGP("%s: Invalid handle", __func__);
+		vos_status = VOS_STATUS_E_INVAL;
+		goto end;
+	}
+
+	mac = (struct sAniSirGlobal*)vos_get_context(VOS_MODULE_ID_PE,
+			wma_handle->vos_context);
+
+	if (NULL == mac) {
+		WMA_LOGE("%s: Failed to get mac", __func__);
 		vos_status = VOS_STATUS_E_INVAL;
 		goto end;
 	}
@@ -37447,11 +37486,17 @@ VOS_STATUS wma_stop(v_VOID_t *vos_ctx, tANI_U8 reason)
 		WMA_LOGE("Failed to destroy the log completion timer");
 	}
 
-	if (VOS_FTM_MODE != vos_get_conparam()) {
-		/* Destroy firmware time stamp sync timer */
-		vos_status = vos_timer_destroy(&wma_handle->wma_fw_time_sync_timer);
-		if (vos_status != VOS_STATUS_SUCCESS)
-			WMA_LOGE(FL("Failed to destroy the fw time sync timer"));
+	if (wlan_cfgGetInt(mac, WNI_CFG_REMOVE_TIME_SYNC_CMD,
+				   &cfg_val) == eSIR_SUCCESS) {
+		if (cfg_val == 0 && VOS_FTM_MODE != vos_get_conparam()) {
+			/* Destroy firmware time stamp sync timer */
+			vos_status = vos_timer_destroy(
+			               &wma_handle->wma_fw_time_sync_timer);
+			if (vos_status != VOS_STATUS_SUCCESS) {
+				WMA_LOGE(FL("Failed to destroy the"
+					"fw time sync timer"));
+			}
+		}
 	}
 
 	/* There's no need suspend target which is already down during SSR. */
