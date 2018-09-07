@@ -33,7 +33,7 @@ static cpumask_var_t tick_broadcast_mask;
 static cpumask_var_t tick_broadcast_on;
 static cpumask_var_t tmpmask;
 static DEFINE_RAW_SPINLOCK(tick_broadcast_lock);
-static int tick_broadcast_forced;
+static int tick_broadcast_force;
 
 #ifdef CONFIG_TICK_ONESHOT
 static void tick_broadcast_clear_oneshot(int cpu);
@@ -324,54 +324,49 @@ unlock:
 	raw_spin_unlock(&tick_broadcast_lock);
 }
 
-/**
- * tick_broadcast_control - Enable/disable or force broadcast mode
- * @mode:	The selected broadcast mode
- *
- * Called when the system enters a state where affected tick devices
- * might stop. Note: TICK_BROADCAST_FORCE cannot be undone.
- *
- * Called with interrupts disabled, so clockevents_lock is not
- * required here because the local clock event device cannot go away
- * under us.
+/*
+ * Powerstate information: The system enters/leaves a state, where
+ * affected devices might stop
  */
-void tick_broadcast_control(enum tick_broadcast_mode mode)
+static void tick_do_broadcast_on_off(unsigned long *reason)
 {
 	struct clock_event_device *bc, *dev;
 	struct tick_device *td;
+	unsigned long flags;
 	int cpu, bc_stopped;
 
-	td = this_cpu_ptr(&tick_cpu_device);
+	raw_spin_lock_irqsave(&tick_broadcast_lock, flags);
+
+	cpu = smp_processor_id();
+	td = &per_cpu(tick_cpu_device, cpu);
 	dev = td->evtdev;
+	bc = tick_broadcast_device.evtdev;
 
 	/*
 	 * Is the device not affected by the powerstate ?
 	 */
 	if (!dev || !(dev->features & CLOCK_EVT_FEAT_C3STOP))
-		return;
+		goto out;
 
 	if (!tick_device_is_functional(dev))
-		return;
+		goto out;
 
-	raw_spin_lock(&tick_broadcast_lock);
-	cpu = smp_processor_id();
-	bc = tick_broadcast_device.evtdev;
 	bc_stopped = cpumask_empty(tick_broadcast_mask);
 
-	switch (mode) {
-	case TICK_BROADCAST_FORCE:
-		tick_broadcast_forced = 1;
-	case TICK_BROADCAST_ON:
+	switch (*reason) {
+	case CLOCK_EVT_NOTIFY_BROADCAST_ON:
+	case CLOCK_EVT_NOTIFY_BROADCAST_FORCE:
 		cpumask_set_cpu(cpu, tick_broadcast_on);
 		if (!cpumask_test_and_set_cpu(cpu, tick_broadcast_mask)) {
 			if (tick_broadcast_device.mode ==
 			    TICKDEV_MODE_PERIODIC)
 				clockevents_shutdown(dev);
 		}
+		if (*reason == CLOCK_EVT_NOTIFY_BROADCAST_FORCE)
+			tick_broadcast_force = 1;
 		break;
-
-	case TICK_BROADCAST_OFF:
-		if (tick_broadcast_forced)
+	case CLOCK_EVT_NOTIFY_BROADCAST_OFF:
+		if (tick_broadcast_force)
 			break;
 		cpumask_clear_cpu(cpu, tick_broadcast_on);
 		if (!tick_device_is_functional(dev))
@@ -393,9 +388,22 @@ void tick_broadcast_control(enum tick_broadcast_mode mode)
 		else
 			tick_broadcast_setup_oneshot(bc);
 	}
-	raw_spin_unlock(&tick_broadcast_lock);
+out:
+	raw_spin_unlock_irqrestore(&tick_broadcast_lock, flags);
 }
-EXPORT_SYMBOL_GPL(tick_broadcast_control);
+
+/*
+ * Powerstate information: The system enters/leaves a state, where
+ * affected devices might stop.
+ */
+void tick_broadcast_on_off(unsigned long reason, int *oncpu)
+{
+	if (!cpumask_test_cpu(*oncpu, cpu_online_mask))
+		printk(KERN_ERR "tick-broadcast: ignoring broadcast for "
+		       "offline CPU #%d\n", *oncpu);
+	else
+		tick_do_broadcast_on_off(&reason);
+}
 
 /*
  * Set the periodic handler depending on broadcast on/off
@@ -684,23 +692,18 @@ void hotplug_cpu__broadcast_tick_pull(int deadcpu)
 	raw_spin_unlock_irqrestore(&tick_broadcast_lock, flags);
 }
 
-/**
- * tick_broadcast_oneshot_control - Enter/exit broadcast oneshot mode
- * @state:	The target state (enter/exit)
- *
- * The system enters/leaves a state, where affected devices might stop
+/*
+ * Powerstate information: The system enters/leaves a state, where
+ * affected devices might stop
  * Returns 0 on success, -EBUSY if the cpu is used to broadcast wakeups.
- *
- * Called with interrupts disabled, so clockevents_lock is not
- * required here because the local clock event device cannot go away
- * under us.
  */
-int tick_broadcast_oneshot_control(enum tick_broadcast_state state)
+int tick_broadcast_oneshot_control(unsigned long reason)
 {
 	struct clock_event_device *bc, *dev;
 	struct tick_device *td;
-	int cpu, ret = 0;
+	unsigned long flags;
 	ktime_t now;
+	int cpu, ret = 0;
 
 	/*
 	 * Periodic mode does not care about the enter/exit of power
@@ -713,17 +716,17 @@ int tick_broadcast_oneshot_control(enum tick_broadcast_state state)
 	 * We are called with preemtion disabled from the depth of the
 	 * idle code, so we can't be moved away.
 	 */
-	td = this_cpu_ptr(&tick_cpu_device);
+	cpu = smp_processor_id();
+	td = &per_cpu(tick_cpu_device, cpu);
 	dev = td->evtdev;
 
 	if (!(dev->features & CLOCK_EVT_FEAT_C3STOP))
 		return 0;
 
-	raw_spin_lock(&tick_broadcast_lock);
 	bc = tick_broadcast_device.evtdev;
-	cpu = smp_processor_id();
 
-	if (state == TICK_BROADCAST_ENTER) {
+	raw_spin_lock_irqsave(&tick_broadcast_lock, flags);
+	if (reason == CLOCK_EVT_NOTIFY_BROADCAST_ENTER) {
 		if (!cpumask_test_and_set_cpu(cpu, tick_broadcast_oneshot_mask)) {
 			WARN_ON_ONCE(cpumask_test_cpu(cpu, tick_broadcast_pending_mask));
 			broadcast_shutdown_local(bc, dev);
@@ -815,10 +818,9 @@ int tick_broadcast_oneshot_control(enum tick_broadcast_state state)
 		}
 	}
 out:
-	raw_spin_unlock(&tick_broadcast_lock);
+	raw_spin_unlock_irqrestore(&tick_broadcast_lock, flags);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(tick_broadcast_oneshot_control);
 
 /*
  * Reset the one shot broadcast for a cpu
