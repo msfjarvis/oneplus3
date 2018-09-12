@@ -132,13 +132,13 @@
 		};
 	};
 
-	reserved-memory {
+	reserved_mem: reserved-memory {
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;
 
 		external_image_mem: external_image__region@0 {
-			reg = <0x0 0x87a00000 0x0 0x0600000>;
+			reg = <0x0 0x87900000 0x0 0x0700000>;
 			compatible = "removed-dma-pool";
 			no-map;
 		};
@@ -1727,6 +1727,11 @@
 			qcom,msm-dai-q6-dev-id = <240>;
 		};
 
+		afe_loopback_tx: qcom,msm-dai-q6-afe-loopback-tx {
+			compatible = "qcom,msm-dai-q6-dev";
+			qcom,msm-dai-q6-dev-id = <24577>;
+		};
+
 		incall_record_rx: qcom,msm-dai-q6-incall-record-rx {
 			compatible = "qcom,msm-dai-q6-dev";
 			qcom,msm-dai-q6-dev-id = <32771>;
@@ -1861,6 +1866,10 @@
 		qcom,use-sw-aes-cbc-ecb-ctr-algo;
 		qcom,use-sw-aes-xts-algo;
 		qcom,use-sw-ahash-algo;
+		qcom,use-sw-aes-ccm-algo;
+		qcom,use-sw-hmac-algo;
+		qcom,use-sw-aead-algo;
+
 		status = "disabled";
 		qcom,ce-opp-freq = <100000000>;
 	};
@@ -1891,9 +1900,9 @@
 		qcom,ce-opp-freq = <100000000>;
 	};
 
-	qcom_seecom: qseecom@87a00000 {
+	qcom_seecom: qseecom@87900000 {
 		compatible = "qcom,qseecom";
-		reg = <0x87a00000 0x200000>;
+		reg = <0x87900000 0x300000>;
 		reg-names = "secapp-region";
 		qcom,disk-encrypt-pipe-pair = <2>;
 		qcom,hlos-ce-hw-instance = <0>;

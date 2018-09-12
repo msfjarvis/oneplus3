@@ -1,6 +1,6 @@
 /*Qualcomm Secure Execution Environment Communicator (QSEECOM) driver
  *
- * Copyright (c) 2012-2017, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -108,6 +108,9 @@
  */
 #define DEFAULT_CE_INFO_UNIT 0
 #define DEFAULT_NUM_CE_INFO_UNIT 1
+
+#define FDE_FLAG_POS    4
+#define ENABLE_KEY_WRAP_IN_KS    (1 << FDE_FLAG_POS)
 
 enum qseecom_clk_definitions {
 	CLK_DFAB = 0,
@@ -273,6 +276,7 @@ struct qseecom_control {
 	unsigned int ce_opp_freq_hz;
 	bool appsbl_qseecom_support;
 	uint32_t qsee_reentrancy_support;
+	bool enable_key_wrap_in_ks;
 
 	uint32_t app_block_ref_cnt;
 	wait_queue_head_t app_block_wq;
@@ -5779,6 +5783,9 @@ static int qseecom_create_key(struct qseecom_dev_handle *data,
 	else
 		flags |= QSEECOM_ICE_FDE_KEY_SIZE_16_BYTE;
 
+	if (qseecom.enable_key_wrap_in_ks == true)
+		flags |= ENABLE_KEY_WRAP_IN_KS;
+
 	generate_key_ireq.flags = flags;
 	generate_key_ireq.qsee_command_id = QSEOS_GENERATE_KEY;
 	memset((void *)generate_key_ireq.key_id,
@@ -8467,6 +8474,14 @@ static int qseecom_probe(struct platform_device *pdev)
 				qseecom.qsee_reentrancy_support);
 		}
 
+		qseecom.enable_key_wrap_in_ks =
+			of_property_read_bool((&pdev->dev)->of_node,
+					"qcom,enable-key-wrap-in-ks");
+		if (qseecom.enable_key_wrap_in_ks) {
+			pr_warn("qseecom.enable_key_wrap_in_ks = %d\n",
+					qseecom.enable_key_wrap_in_ks);
+		}
+
 		/*
 		 * The qseecom bus scaling flag can not be enabled when
 		 * crypto clock is not handled by HLOS.
@@ -8633,6 +8648,7 @@ exit_unreg_chrdev_region:
 static int qseecom_remove(struct platform_device *pdev)
 {
 	struct qseecom_registered_kclient_list *kclient = NULL;
+	struct qseecom_registered_kclient_list *kclient_tmp = NULL;
 	unsigned long flags = 0;
 	int ret = 0;
 	int i;
@@ -8642,10 +8658,8 @@ static int qseecom_remove(struct platform_device *pdev)
 	atomic_set(&qseecom.qseecom_state, QSEECOM_STATE_NOT_READY);
 	spin_lock_irqsave(&qseecom.registered_kclient_list_lock, flags);
 
-	list_for_each_entry(kclient, &qseecom.registered_kclient_list_head,
-								list) {
-		if (!kclient)
-			goto exit_irqrestore;
+	list_for_each_entry_safe(kclient, kclient_tmp,
+		&qseecom.registered_kclient_list_head, list) {
 
 		/* Break the loop if client handle is NULL */
 		if (!kclient->handle)
@@ -8669,7 +8683,7 @@ exit_free_kc_handle:
 	kzfree(kclient->handle);
 exit_free_kclient:
 	kzfree(kclient);
-exit_irqrestore:
+
 	spin_unlock_irqrestore(&qseecom.registered_kclient_list_lock, flags);
 
 	if (qseecom.qseos_version > QSEEE_VERSION_00)

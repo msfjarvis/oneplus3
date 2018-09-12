@@ -78,6 +78,7 @@ haoyu	Haoyu Microelectronic Co. Ltd.
 hisilicon	Hisilicon Limited.
 honeywell	Honeywell
 hp	Hewlett Packard
+himax   Himax Coroporation
 i2se	I2SE GmbH
 ibm	International Business Machines (IBM)
 idt	Integrated Device Technologies, Inc.
@@ -201,3 +202,5 @@ zyxel	ZyXEL Communications Corp.
 zarlink	Zarlink Semiconductor
 bosch-sensortec»    Bosch Sensortec GmbH
 lontium Lontium Semiconductor
+himax	Himax Technologies, Inc.
+hxcommon	Himax Technologies, Inc.
