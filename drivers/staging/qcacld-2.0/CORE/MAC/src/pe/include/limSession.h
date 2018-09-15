@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -529,6 +529,10 @@ typedef struct sPESession           // Added to Support BT-AMP
 #ifdef WLAN_FEATURE_FILS_SK
     struct pe_fils_session *fils_info;
 #endif
+    uint8_t deauthmsgcnt;
+    uint8_t disassocmsgcnt;
+    /* previous auth frame's sequence number */
+    uint16_t prev_auth_seq_num;
 } tPESession, *tpPESession;
 
 /*-------------------------------------------------------------------------

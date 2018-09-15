@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -44,7 +44,9 @@
 #include "smeQosInternal.h"
 #include "wlan_qct_wda.h"
 #include "vos_utils.h"
-
+#ifdef FEATURE_WLAN_MCC_TO_SCC_SWITCH
+#include "limApi.h"
+#endif
 #if defined(FEATURE_WLAN_ESE) && !defined(FEATURE_WLAN_ESE_UPLOAD)
 #include "csrEse.h"
 #endif /* FEATURE_WLAN_ESE && !FEATURE_WLAN_ESE_UPLOAD*/
@@ -1108,6 +1110,7 @@ tANI_BOOLEAN csr_find_sta_session_info(
 	tpAniSirGlobal pMac = PMAC_STRUCT( hHal );
 	tCsrRoamSession *pSession = NULL;
 	v_U8_t i = 0;
+	tpPESession psessionEntry;
 
 	for( i = 0; i < CSR_ROAM_SESSION_MAX; i++ ) {
 		if( !CSR_IS_SESSION_VALID( pMac, i ) )
@@ -1121,8 +1124,21 @@ tANI_BOOLEAN csr_find_sta_session_info(
 				VOS_P2P_CLIENT_MODE)) &&
 			(pSession->connectState ==
 				eCSR_ASSOC_STATE_TYPE_INFRA_ASSOCIATED)) {
-			info->och =
-				pSession->connectedProfile.operationChannel;
+			if(vos_is_ch_switch_with_csa_enabled()){
+				psessionEntry = peFindSessionBySessionId(pMac,
+						pMac->lim.limTimers.gLimChannelSwitchTimer.sessionId);
+				if (psessionEntry && LIM_IS_STA_ROLE(psessionEntry)) {
+					info->och = psessionEntry->gLimChannelSwitch.primaryChannel;
+					smsLog(pMac, LOGP,
+						FL("SAP channel switch with CSA enabled (SAP new ch: %d)"), info->och);
+				}else{
+					info->och =
+						pSession->connectedProfile.operationChannel;
+				}
+			}else{
+				info->och =
+					pSession->connectedProfile.operationChannel;
+			}
 			csrGetChFromHTProfile(pMac,
 				&pSession->connectedProfile.HTProfile,
 				info->och, &info->cfreq, &info->hbw);
@@ -3293,11 +3309,11 @@ tANI_BOOLEAN csrGetRSNInformation( tHalHandle hHal, tCsrAuthList *pAuthType, eCs
             cMulticastCyphers++;
             vos_mem_copy(MulticastCyphers, pRSNIe->gp_cipher_suite, CSR_RSN_OUI_SIZE);
             cUnicastCyphers = (tANI_U8)(pRSNIe->pwise_cipher_suite_count);
-            cAuthSuites = (tANI_U8)(pRSNIe->akm_suite_count);
+            cAuthSuites = (tANI_U8)(pRSNIe->akm_suite_cnt);
             for(i = 0; i < cAuthSuites && i < CSR_RSN_MAX_AUTH_SUITES; i++)
             {
                 vos_mem_copy((void *)&AuthSuites[i],
-                             (void *)&pRSNIe->akm_suites[i],
+                             (void *)&pRSNIe->akm_suite[i],
                              CSR_RSN_OUI_SIZE);
             }
 
@@ -3719,7 +3735,8 @@ tANI_U8 csrConstructRSNIe( tHalHandle hHal, tANI_U32 sessionId, tCsrRoamProfile 
 #endif
     tDot11fBeaconIEs *pIesLocal = pIes;
     eCsrAuthType negAuthType = eCSR_AUTH_TYPE_UNKNOWN;
-
+    tDot11fIERSN dot11RSNIE;
+    tANI_U32 status;
     smsLog(pMac, LOGW, "%s called...", __func__);
 
     do
@@ -3729,6 +3746,24 @@ tANI_U8 csrConstructRSNIe( tHalHandle hHal, tANI_U32 sessionId, tCsrRoamProfile 
         if( !pIesLocal && (!HAL_STATUS_SUCCESS(csrGetParsedBssDescriptionIEs(pMac, pSirBssDesc, &pIesLocal))) )
         {
             break;
+        }
+
+        memset(&dot11RSNIE, 0, sizeof(tDot11fIERSN));
+        /*
+         *  Use intersection of the RSN cap sent by user space and
+         *  the AP, so that only common capability are enabled.
+         */
+        if(pProfile->nRSNReqIELength && pProfile->pRSNReqIE) {
+            status = dot11fUnpackIeRSN(hHal, pProfile->pRSNReqIE + 2,
+                                       pProfile->nRSNReqIELength - 2, &dot11RSNIE);
+            if (DOT11F_SUCCEEDED(status)) {
+                pIesLocal->RSN.RSN_Cap[0] =
+                        pIesLocal->RSN.RSN_Cap[0] &
+                        dot11RSNIE.RSN_Cap[0];
+                pIesLocal->RSN.RSN_Cap[1] =
+                        pIesLocal->RSN.RSN_Cap[1] &
+                        dot11RSNIE.RSN_Cap[1];
+            }
         }
 
         // See if the cyphers in the Bss description match with the settings in the profile.

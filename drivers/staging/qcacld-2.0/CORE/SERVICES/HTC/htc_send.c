@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -105,13 +105,13 @@ void HTCGetControlEndpointTxHostCredits(HTC_HANDLE HTCHandle, int *credits)
 
 static INLINE void RestoreTxPacket(HTC_TARGET *target, HTC_PACKET *pPacket)
 {
-    if (pPacket->PktInfo.AsTx.Flags & HTC_TX_PACKET_FLAG_FIXUP_NETBUF) {
-        adf_nbuf_t netbuf = GET_HTC_PACKET_NET_BUF_CONTEXT(pPacket);
-        adf_nbuf_unmap(target->osdev, netbuf, ADF_OS_DMA_TO_DEVICE);
-        adf_nbuf_pull_head(netbuf, sizeof(HTC_FRAME_HDR));
-        pPacket->PktInfo.AsTx.Flags &= ~HTC_TX_PACKET_FLAG_FIXUP_NETBUF;
-    }
+    adf_nbuf_t netbuf = GET_HTC_PACKET_NET_BUF_CONTEXT(pPacket);
 
+    if (pPacket->PktInfo.AsTx.Flags & HTC_TX_PACKET_FLAG_FIXUP_NETBUF) {
+        adf_nbuf_unmap(target->osdev, netbuf, ADF_OS_DMA_TO_DEVICE);
+        pPacket->PktInfo.AsTx.Flags &= ~HTC_TX_PACKET_FLAG_FIXUP_NETBUF;
+        adf_nbuf_pull_head(netbuf, sizeof(HTC_FRAME_HDR));
+    }
 }
 
 static void DoSendCompletion(HTC_ENDPOINT       *pEndpoint,
@@ -412,8 +412,8 @@ static A_STATUS HTCSendBundledNetbuf(HTC_TARGET *target,
     adf_os_print(" Send bundle EP%d buffer size:0x%x, total:0x%x, count:%d.\n",
             pEndpoint->Id,
             pEndpoint->TxCreditSize,
-            data_len,
-            data_len / pEndpoint->TxCreditSize);
+            (int)data_len,
+            (int)data_len / pEndpoint->TxCreditSize);
 #endif
 
 #if defined(DEBUG_HL_LOGGING) && defined(CONFIG_HL_SUPPORT)
@@ -526,6 +526,9 @@ static A_STATUS HTCIssuePacketsBundle(HTC_TARGET *target,
        HTC_WRITE32((A_UINT32 *)pHtcHdr + 1,
                  SM(pPacket->PktInfo.AsTx.SeqNo, HTC_FRAME_HDR_CONTROLBYTES1) |
                  SM(creditPad, HTC_FRAME_HDR_RESERVED));
+#ifdef HIF_SDIO
+       if(target->enable_b2b)
+#endif
        pHtcHdr->reserved = creditPad;
 #endif
        frag_count = adf_nbuf_get_num_frags(netbuf);
@@ -634,16 +637,13 @@ static A_STATUS HTCIssuePackets(HTC_TARGET       *target,
              * Now that the HTC frame header has been added, the netbuf can be
              * mapped.  This only applies to non-data frames, since data frames
              * were already mapped as they entered into the driver.
-             * Check the "FIXUP_NETBUF" flag to see whether this is a data netbuf
-             * that is already mapped, or a non-data netbuf that needs to be
-             * mapped.
              */
-            if (pPacket->PktInfo.AsTx.Flags & HTC_TX_PACKET_FLAG_FIXUP_NETBUF) {
-                adf_nbuf_map(
-                        target->osdev,
-                        GET_HTC_PACKET_NET_BUF_CONTEXT(pPacket),
-                        ADF_OS_DMA_TO_DEVICE);
-            }
+            pPacket->PktInfo.AsTx.Flags |= HTC_TX_PACKET_FLAG_FIXUP_NETBUF;
+
+            adf_nbuf_map(
+                    target->osdev,
+                    GET_HTC_PACKET_NET_BUF_CONTEXT(pPacket),
+                    ADF_OS_DMA_TO_DEVICE);
         }
         LOCK_HTC_TX(target);
             /* store in look up queue to match completions */
@@ -668,7 +668,7 @@ static A_STATUS HTCIssuePackets(HTC_TARGET       *target,
         adf_os_print(" Send single EP%d buffer size:0x%x, total:0x%x.\n",
             pEndpoint->Id,
             pEndpoint->TxCreditSize,
-            HTC_HDR_LENGTH + pPacket->ActualLength);
+            (int)HTC_HDR_LENGTH + pPacket->ActualLength);
 #endif
 
 #if defined(DEBUG_HL_LOGGING) && defined(CONFIG_HL_SUPPORT)
@@ -708,7 +708,7 @@ static A_STATUS HTCIssuePackets(HTC_TARGET       *target,
 
     if (adf_os_unlikely(A_FAILED(status)))
         AR_DEBUG_PRINTF(ATH_DEBUG_ERR,
-            ("htc_issue_packets, failed pkt:0x%pK status:%d",
+            ("HTCIssuePackets, failed pkt:0x%pK status:%d",
             pPacket, status));
 
     AR_DEBUG_PRINTF(ATH_DEBUG_SEND, ("-HTCIssuePackets \n"));
@@ -1173,7 +1173,7 @@ static HTC_SEND_QUEUE_RESULT HTCTrySend(HTC_TARGET       *target,
         result = HTCIssuePackets(target,pEndpoint,&sendQueue);
         if (result) {
             AR_DEBUG_PRINTF(ATH_DEBUG_ERR,
-               ("htc_issue_packets, failed status:%d put it back to head of callers SendQueue",
+               ("HTCIssuePackets, failed status:%d put it back to head of callers SendQueue",
                result));
             LOCK_HTC_TX(target);
             HTC_PACKET_QUEUE_TRANSFER_TO_HEAD(&pEndpoint->TxQueue,
@@ -1257,13 +1257,19 @@ A_STATUS HTCSendPktsMultiple(HTC_HANDLE HTCHandle, HTC_PACKET_QUEUE *pPktQueue)
              * Now that the HTC frame header has been added, the netbuf can be
              * mapped.  This only applies to non-data frames, since data frames
              * were already mapped as they entered into the driver.
+             * For flow control enabled endpoints mapping is done in
+             * HTCIssuePackets and for non flow control enabled endpoints
+             * its done here.
              */
-            adf_nbuf_map(
-                    target->osdev,
-                    GET_HTC_PACKET_NET_BUF_CONTEXT(pPacket),
-                    ADF_OS_DMA_TO_DEVICE);
 
-	pPacket->PktInfo.AsTx.Flags |= HTC_TX_PACKET_FLAG_FIXUP_NETBUF;
+            if (!IS_TX_CREDIT_FLOW_ENABLED(pEndpoint)) {
+                pPacket->PktInfo.AsTx.Flags |= HTC_TX_PACKET_FLAG_FIXUP_NETBUF;
+                adf_nbuf_map(
+                        target->osdev,
+                        GET_HTC_PACKET_NET_BUF_CONTEXT(pPacket),
+                        ADF_OS_DMA_TO_DEVICE);
+
+            }
     } HTC_PACKET_QUEUE_ITERATE_END;
 
     HTCTrySend(target,pEndpoint,pPktQueue);
@@ -1294,6 +1300,7 @@ A_STATUS HTCSendPktsMultiple(HTC_HANDLE HTCHandle, HTC_PACKET_QUEUE *pPktQueue)
 A_STATUS    HTCSendPkt(HTC_HANDLE HTCHandle, HTC_PACKET *pPacket)
 {
     HTC_PACKET_QUEUE queue;
+    A_STATUS  send_status;
 
     if (HTCHandle == NULL || pPacket == NULL) {
         return A_ERROR;
@@ -1303,7 +1310,9 @@ A_STATUS    HTCSendPkt(HTC_HANDLE HTCHandle, HTC_PACKET *pPacket)
                     ("+-HTCSendPkt: Enter endPointId: %d, buffer: %pK, length: %d \n",
                     pPacket->Endpoint, pPacket->pBuffer, pPacket->ActualLength));
     INIT_HTC_PACKET_QUEUE_AND_ADD(&queue,pPacket);
-    return HTCSendPktsMultiple(HTCHandle, &queue);
+    send_status = HTCSendPktsMultiple(HTCHandle, &queue);
+    pPacket = NULL;
+    return send_status;
 }
 
 #ifdef ATH_11AC_TXCOMPACT
@@ -1538,7 +1547,7 @@ A_STATUS HTCSendDataPkt(HTC_HANDLE HTCHandle, HTC_PACKET *pPacket,
         adf_os_print(" Send single EP%d buffer size:0x%x, total:0x%x.\n",
             pEndpoint->Id,
             pEndpoint->TxCreditSize,
-            HTC_HDR_LENGTH + pPacket->ActualLength);
+            (int)HTC_HDR_LENGTH + pPacket->ActualLength);
 #endif
 
 #if defined(DEBUG_HL_LOGGING) && defined(CONFIG_HL_SUPPORT)

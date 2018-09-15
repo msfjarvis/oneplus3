@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -51,6 +51,7 @@
 #include "vos_types.h"
 #include "vos_trace.h"
 #include "vos_sched.h"
+#include "wlan_hdd_request_manager.h"
 
 //Ms to Micro Sec
 #define MS_TO_MUS(x)   ((x)*1000)
@@ -165,6 +166,10 @@ static bool hdd_p2p_is_action_type_rsp( const u8 *buf, uint32_t len )
     return FALSE;
 }
 
+struct random_mac_priv {
+	bool set_random_addr;
+};
+
 /**
  * hdd_random_mac_callback() - Callback invoked from wmi layer
  * @set_random_addr: Status of random mac filter set operation
@@ -177,32 +182,20 @@ static bool hdd_p2p_is_action_type_rsp( const u8 *buf, uint32_t len )
  */
 static void hdd_random_mac_callback(bool set_random_addr, void *context)
 {
-	struct random_mac_context *rnd_ctx;
-	hdd_adapter_t *adapter;
+	struct hdd_request *request;
+	struct random_mac_priv *priv;
 
-	if (!context) {
-		hddLog(LOGE, FL("Bad param, pContext"));
+	request = hdd_request_get(context);
+	if (!request) {
+		hddLog(LOGE,FL("invalid request"));
 		return;
 	}
 
-	rnd_ctx = context;
-	adapter = rnd_ctx->adapter;
+	priv = hdd_request_priv(request);
+	priv->set_random_addr = set_random_addr;
 
-	spin_lock(&hdd_context_lock);
-	if ((!adapter) ||
-	    (rnd_ctx->magic != ACTION_FRAME_RANDOM_CONTEXT_MAGIC)) {
-		spin_unlock(&hdd_context_lock);
-		hddLog(VOS_TRACE_LEVEL_WARN,
-		       FL("Invalid context, magic [%08x]"), rnd_ctx->magic);
-		return;
-	}
-
-	rnd_ctx->magic = 0;
-	if (set_random_addr)
-		rnd_ctx->set_random_addr = true;
-
-	complete(&rnd_ctx->random_mac_completion);
-	spin_unlock(&hdd_context_lock);
+	hdd_request_complete(request);
+	hdd_request_put(request);
 }
 
 /**
@@ -214,11 +207,17 @@ static void hdd_random_mac_callback(bool set_random_addr, void *context)
  */
 static bool hdd_set_random_mac(hdd_adapter_t *adapter, uint8_t *random_mac_addr)
 {
-	struct random_mac_context context;
 	hdd_context_t *hdd_ctx;
 	eHalStatus sme_status;
 	unsigned long rc;
+	void *cookie;
 	bool status = false;
+	struct hdd_request     *request;
+	struct random_mac_priv *priv;
+	static const struct hdd_request_params params = {
+		.priv_size = sizeof(*priv),
+		.timeout_ms = WLAN_WAIT_TIME_SET_RND,
+	};
 
 	ENTER();
 	hdd_ctx = WLAN_HDD_GET_CTX(adapter);
@@ -227,32 +226,33 @@ static bool hdd_set_random_mac(hdd_adapter_t *adapter, uint8_t *random_mac_addr)
 		return false;
 	}
 
-	init_completion(&context.random_mac_completion);
-	context.adapter = adapter;
-	context.magic = ACTION_FRAME_RANDOM_CONTEXT_MAGIC;
-	context.set_random_addr = false;
+	request = hdd_request_alloc(&params);
+	if (!request) {
+		hddLog(LOGE, FL("Request allocation failure"));
+		return false;
+	}
+
+	cookie = hdd_request_cookie(request);
 
 	sme_status = sme_set_random_mac(hdd_ctx->hHal, hdd_random_mac_callback,
 				     adapter->sessionId, random_mac_addr,
-				     &context);
+				     cookie);
 
 	if (sme_status != eHAL_STATUS_SUCCESS) {
 		hddLog(LOGE,FL("Unable to set random mac"));
 	} else {
-		rc = wait_for_completion_timeout(&context.random_mac_completion,
-                                    msecs_to_jiffies(WLAN_WAIT_TIME_SET_RND));
-		if (!rc) {
-			hddLog(LOGE,
-			FL("SME timed out while setting random mac"));
+		rc = hdd_request_wait_for_response(request);
+		if (rc) {
+			hddLog(LOGE, FL("SME timed out while setting random mac"));
+		} else {
+			priv = hdd_request_priv(request);
+			status = priv->set_random_addr;
 		}
 	}
 
-	spin_lock(&hdd_context_lock);
-	context.magic = 0;
-	status = context.set_random_addr;
-	spin_unlock(&hdd_context_lock);
-
+	hdd_request_put(request);
 	EXIT();
+
 	return status;
 }
 
@@ -1174,12 +1174,18 @@ static int wlan_hdd_execute_remain_on_channel(hdd_adapter_t *pAdapter,
             return -EINVAL;
         }
 
-        if (REMAIN_ON_CHANNEL_REQUEST == pRemainChanCtx->rem_on_chan_request) {
+        mutex_lock(&cfgState->remain_on_chan_ctx_lock);
+        pRemainChanCtx = cfgState->remain_on_chan_ctx;
+        if ((pRemainChanCtx)&&(REMAIN_ON_CHANNEL_REQUEST ==
+            pRemainChanCtx->rem_on_chan_request)) {
+            mutex_unlock(&cfgState->remain_on_chan_ctx_lock);
             if (eHAL_STATUS_SUCCESS != sme_RegisterMgmtFrame(
                                          WLAN_HDD_GET_HAL_CTX(pAdapter),
                                          sessionId, (SIR_MAC_MGMT_FRAME << 2) |
                                         (SIR_MAC_MGMT_PROBE_REQ << 4), NULL, 0))
                 hddLog(LOGE, FL("sme_RegisterMgmtFrame returned failure"));
+        } else {
+               mutex_unlock(&cfgState->remain_on_chan_ctx_lock);
         }
     }
     else if ( ( WLAN_HDD_SOFTAP== pAdapter->device_mode ) ||
@@ -1402,7 +1408,9 @@ static int wlan_hdd_request_remain_on_channel( struct wiphy *wiphy,
     hdd_adapter_t *sta_adapter;
     int ret = 0;
     int status = 0;
-
+#ifdef FEATURE_WLAN_DISABLE_CHANNEL_SWITCH
+    uint8_t channel;
+#endif
     hddLog(LOG1, FL("Device_mode %s(%d)"),
            hdd_device_mode_to_string(pAdapter->device_mode),
            pAdapter->device_mode);
@@ -1433,7 +1441,13 @@ static int wlan_hdd_request_remain_on_channel( struct wiphy *wiphy,
         hddLog(LOGE, FL("Connection is in progress"));
         isBusy = VOS_TRUE;
     }
-
+#ifdef FEATURE_WLAN_DISABLE_CHANNEL_SWITCH
+    channel = vos_freq_to_chan(chan->center_freq);
+    if (!vos_is_chan_ok_for_dnbs(channel)) {
+        hddLog(LOGE, FL("chan-%d is not valid for DNBS"), channel);
+        return 0;
+    }
+#endif
     pRemainChanCtx = vos_mem_malloc(sizeof(hdd_remain_on_chan_ctx_t));
     if (NULL == pRemainChanCtx) {
         hddLog(VOS_TRACE_LEVEL_FATAL,
@@ -2965,6 +2979,25 @@ struct wireless_dev* __wlan_hdd_add_virtual_intf(
         hddLog(VOS_TRACE_LEVEL_ERROR,"%s: hdd_open_adapter failed",__func__);
         return ERR_PTR(-ENOSPC);
     }
+#ifdef WLAN_FEATURE_SAP_TO_FOLLOW_STA_CHAN
+    if(pAdapter->device_mode == WLAN_HDD_SOFTAP)
+    {
+	    if(pHddCtx->ch_switch_ctx.chan_sw_timer_initialized == VOS_FALSE)
+	    {
+		    //Initialize the channel switch timer
+		    ret = vos_timer_init(&pHddCtx->ch_switch_ctx.hdd_ap_chan_switch_timer, VOS_TIMER_TYPE_SW,
+				    hdd_hostapd_chan_switch_cb, (v_PVOID_t)pAdapter);
+		    if(!VOS_IS_STATUS_SUCCESS(ret))
+		    {
+			    hddLog(LOGE, FL("Failed to initialize AP channel switch timer!!\n"));
+			    EXIT();
+			    return ERR_PTR(ret);
+		    }
+		    pHddCtx->ch_switch_ctx.chan_sw_timer_initialized = VOS_TRUE;
+	    }
+    }
+#endif //WLAN_FEATURE_SAP_TO_FOLLOW_STA_CHAN
+
     EXIT();
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0)) || defined(WITH_BACKPORTS)
     return pAdapter->dev->ieee80211_ptr;

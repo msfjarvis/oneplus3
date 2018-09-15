@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -768,6 +768,33 @@ static u_int8_t* get_wmi_cmd_string(WMI_CMD_ID wmi_command)
 		CASE_RETURN_STRING(WMI_PDEV_UPDATE_PMK_CACHE_CMDID);
 		CASE_RETURN_STRING(WMI_PEER_TID_MSDUQ_QDEPTH_THRESH_UPDATE_CMDID);
 		CASE_RETURN_STRING(WMI_PDEV_SET_RX_FILTER_PROMISCUOUS_CMDID);
+		CASE_RETURN_STRING(WMI_SAP_OBSS_DETECTION_CFG_CMDID);
+		CASE_RETURN_STRING(WMI_PDEV_DMA_RING_CFG_REQ_CMDID);
+		CASE_RETURN_STRING(WMI_SAR_GET_LIMITS_CMDID);
+		CASE_RETURN_STRING(WMI_11K_OFFLOAD_REPORT_CMDID);
+		CASE_RETURN_STRING(WMI_11K_INVOKE_NEIGHBOR_REPORT_CMDID);
+		CASE_RETURN_STRING(WMI_BPF_SET_VDEV_ENABLE_CMDID);
+		CASE_RETURN_STRING(WMI_BPF_SET_VDEV_WORK_MEMORY_CMDID);
+		CASE_RETURN_STRING(WMI_BPF_GET_VDEV_WORK_MEMORY_CMDID);
+		CASE_RETURN_STRING(WMI_BSS_COLOR_CHANGE_ENABLE_CMDID);
+                CASE_RETURN_STRING(WMI_OBSS_COLOR_COLLISION_DET_CONFIG_CMDID);
+                CASE_RETURN_STRING(WMI_RUNTIME_DPD_RECAL_CMDID);
+                CASE_RETURN_STRING(WMI_GET_TPC_POWER_CMDID);
+		CASE_RETURN_STRING(WMI_TWT_ENABLE_CMDID);
+		CASE_RETURN_STRING(WMI_TWT_DISABLE_CMDID);
+		CASE_RETURN_STRING(WMI_TWT_ADD_DIALOG_CMDID);
+		CASE_RETURN_STRING(WMI_TWT_DEL_DIALOG_CMDID);
+		CASE_RETURN_STRING(WMI_TWT_PAUSE_DIALOG_CMDID);
+		CASE_RETURN_STRING(WMI_TWT_RESUME_DIALOG_CMDID);
+		CASE_RETURN_STRING(WMI_PEER_RESERVED0_CMDID);
+		CASE_RETURN_STRING(WMI_REQUEST_ROAM_SCAN_STATS_CMDID);
+		CASE_RETURN_STRING(WMI_PEER_TID_CONFIGURATIONS_CMDID);
+		CASE_RETURN_STRING(WMI_VDEV_SET_CUSTOM_SW_RETRY_TH_CMDID);
+		CASE_RETURN_STRING(WMI_MOTION_DET_BASE_LINE_CONFIG_PARAM_CMDID);
+		CASE_RETURN_STRING(WMI_MOTION_DET_START_STOP_CMDID);
+		CASE_RETURN_STRING(WMI_MOTION_DET_BASE_LINE_START_STOP_CMDID);
+		CASE_RETURN_STRING(WMI_MOTION_DET_CONFIG_PARAM_CMDID);
+
 	}
 	return "Invalid WMI cmd";
 }
@@ -901,6 +928,7 @@ int wmi_unified_cmd_send(wmi_unified_t wmi_handle, wmi_buf_t buf, int len,
 	void *vos_context;
 	struct ol_softc *scn;
 	A_UINT16 htc_tag = 0;
+	int ret;
 
 	if (vos_is_shutdown_in_progress(VOS_MODULE_ID_WDA, NULL)) {
 		adf_os_print("\nERROR: %s: shutdown is in progress so could not send WMI command: %d\n",
@@ -908,6 +936,9 @@ int wmi_unified_cmd_send(wmi_unified_t wmi_handle, wmi_buf_t buf, int len,
 		return -EBUSY;
 	}
 
+	vos_context = vos_get_global_context(VOS_MODULE_ID_WDA, NULL);
+	scn = vos_get_context(VOS_MODULE_ID_HIF, vos_context);
+	adf_os_mutex_acquire(scn->adf_dev, &wmi_handle->wmi_mutex);
 	if (wmi_get_runtime_pm_inprogress(wmi_handle))
 		goto skip_suspend_check;
 
@@ -917,7 +948,8 @@ int wmi_unified_cmd_send(wmi_unified_t wmi_handle, wmi_buf_t buf, int len,
 		adf_os_print("\nERROR: %s: Target is suspended  could not send WMI command: %d\n",
 				__func__, cmd_id);
 		VOS_ASSERT(0);
-		return -EBUSY;
+		ret = -EBUSY;
+		goto error;
 	} else
 		goto dont_tag;
 
@@ -934,22 +966,22 @@ dont_tag:
 		{
 			adf_os_print("\nERROR: %s: Invalid WMI Parameter Buffer for Cmd:%d\n",
 				     __func__, cmd_id);
-			return -1;
+			ret = -EINVAL;
+			goto error;
 		}
 	}
 
 	if (adf_nbuf_push_head(buf, sizeof(WMI_CMD_HDR)) == NULL) {
 		pr_err("%s, Failed to send cmd %x, no memory\n",
 		       __func__, cmd_id);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto error;
 	}
 
 	WMI_SET_FIELD(adf_nbuf_data(buf), WMI_CMD_HDR, COMMANDID, cmd_id);
 
 	adf_os_atomic_inc(&wmi_handle->pending_cmds);
 	if (adf_os_atomic_read(&wmi_handle->pending_cmds) >= WMI_MAX_CMDS) {
-		vos_context = vos_get_global_context(VOS_MODULE_ID_WDA, NULL);
-		scn = vos_get_context(VOS_MODULE_ID_HIF, vos_context);
 		pr_err("\n%s: hostcredits = %d\n", __func__,
 		       wmi_get_host_credits(wmi_handle));
 		HTC_dump_counter_info(wmi_handle->htc_handle);
@@ -962,12 +994,15 @@ dont_tag:
 			if (vos_is_logp_in_progress(VOS_MODULE_ID_VOSS, NULL)) {
 				pr_err("%s- %d: SSR is in progress!!!!\n",
 					 __func__, __LINE__);
-				return -EBUSY;
+				ret = -EBUSY;
+				goto error;
 			}
 			vos_trigger_recovery(true);
 		} else
 			VOS_BUG(0);
-		return -EBUSY;
+
+		ret = -EBUSY;
+		goto error;
 	}
 
 	pkt = adf_os_mem_alloc(NULL, sizeof(*pkt));
@@ -975,7 +1010,8 @@ dont_tag:
 		adf_os_atomic_dec(&wmi_handle->pending_cmds);
 		pr_err("%s, Failed to alloc htc packet %x, no memory\n",
 		       __func__, cmd_id);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto error;
 	}
 
 	SET_HTC_PACKET_INFO_TX(pkt,
@@ -1005,8 +1041,11 @@ dont_tag:
 		pr_err("%s %d, HTCSendPkt failed\n", __func__, __LINE__);
 	}
 
-
+	adf_os_mutex_release(scn->adf_dev, &wmi_handle->wmi_mutex);
 	return ((status == A_OK) ? EOK : -1);
+error:
+	adf_os_mutex_release(scn->adf_dev, &wmi_handle->wmi_mutex);
+	return ret;
 }
 
 
@@ -1246,6 +1285,12 @@ void __wmi_control_rx(struct wmi_unified *wmi_handle, wmi_buf_t evt_buf)
 	default:
 		pr_info("%s: Unhandled WMI event %d\n", __func__, id);
 		break;
+	case WMI_SERVICE_AVAILABLE_EVENTID:
+		pr_info("%s: WMI UNIFIED SERVICE AVAILABLE event\n", __func__);
+		wma_rx_service_available_event(wmi_handle->scn_handle,
+					   wmi_cmd_struct_ptr);
+		break;
+
 	case WMI_SERVICE_READY_EVENTID:
 		pr_info("%s: WMI UNIFIED SERVICE READY event\n", __func__);
 		wma_rx_service_ready_event(wmi_handle->scn_handle,
@@ -1310,6 +1355,8 @@ wmi_unified_attach(ol_scn_t scn_handle, wma_wow_tx_complete_cbk func)
     adf_os_spinlock_init(&wmi_handle->wmi_record_lock);
 #endif
     wmi_handle->wma_wow_tx_complete_cbk = func;
+
+    adf_os_init_mutex(&wmi_handle->wmi_mutex);
     return wmi_handle;
 }
 
