@@ -943,7 +943,7 @@ static bool get_dash_started(void)
 static void update_battery_soc_work(struct work_struct *work)
 {
 	if(is_usb_pluged()== true) {
-		schedule_delayed_work(
+		queue_delayed_work(system_power_efficient_wq,
 				&bq27541_di->battery_soc_work,
 				msecs_to_jiffies(BATTERY_SOC_UPDATE_MS));
 		if(get_dash_started()==true)
@@ -959,8 +959,9 @@ static void update_battery_soc_work(struct work_struct *work)
 	bq27541_get_battery_soc();
 	bq27541_get_batt_remaining_capacity();
 	bq27541_set_alow_reading(false);
-	schedule_delayed_work(&bq27541_di->battery_soc_work,
-			msecs_to_jiffies(BATTERY_SOC_UPDATE_MS));
+	queue_delayed_work(system_power_efficient_wq,
+		&bq27541_di->battery_soc_work,
+		msecs_to_jiffies(BATTERY_SOC_UPDATE_MS));
 }
 
 bool get_extern_fg_regist_done(void)
@@ -1020,9 +1021,10 @@ static void bq27541_hw_config(struct work_struct *work)
 		pr_err("Failed to config Bq27541\n");
 		/* Add for retry when config fail */
 		di->retry_count--;
-		if(di->retry_count > 0)
-			schedule_delayed_work(&di->hw_config, HZ);
-		else
+		if (di->retry_count > 0) {
+			queue_delayed_work(system_power_efficient_wq,
+				&di->hw_config, HZ);
+		} else
 			bq27541_regist_done = true;
 
 		return;
@@ -1321,8 +1323,10 @@ static int bq27541_battery_probe(struct i2c_client *client,
 	INIT_WORK(&di->counter, bq27541_coulomb_counter_work);
 	INIT_DELAYED_WORK(&di->hw_config, bq27541_hw_config);
 	INIT_DELAYED_WORK(&di->battery_soc_work, update_battery_soc_work);
-	schedule_delayed_work(&di->hw_config, BQ27541_INIT_DELAY);
-	schedule_delayed_work(&di->battery_soc_work, BATTERY_SOC_UPDATE_MS);
+	queue_delayed_work(system_power_efficient_wq,
+		&di->hw_config, BQ27541_INIT_DELAY);
+	queue_delayed_work(system_power_efficient_wq,
+		&di->battery_soc_work, BATTERY_SOC_UPDATE_MS);
 	check_bat_type(di);
 
 	di->bq_psy.name = "bms";
@@ -1401,8 +1405,9 @@ static int bq27541_battery_resume(struct i2c_client *client)
 		queue_delayed_work(update_pre_capacity_data.workqueue,
 				&(update_pre_capacity_data.work), msecs_to_jiffies(1000));
 	}
-	schedule_delayed_work(&bq27541_di->battery_soc_work,
-			msecs_to_jiffies(RESUME_SCHDULE_SOC_UPDATE_WORK_MS));
+	queue_delayed_work(system_power_efficient_wq,
+		&bq27541_di->battery_soc_work,
+		msecs_to_jiffies(RESUME_SCHDULE_SOC_UPDATE_WORK_MS));
 	return 0;
 }
 static void bq27541_shutdown(struct i2c_client *client)
