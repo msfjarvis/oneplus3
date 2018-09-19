@@ -225,6 +225,28 @@ lr	.req	x30		// link register
 	str	\src, [\tmp, :lo12:\sym]
 	.endm
 
+	/*
+	 * @dst: Result of per_cpu(sym, smp_processor_id())
+	 * @sym: The name of the per-cpu variable
+	 * @tmp: scratch register
+	 */
+	.macro adr_this_cpu, dst, sym, tmp
+	adr_l	\dst, \sym
+	mrs	\tmp, tpidr_el1
+	add	\dst, \dst, \tmp
+	.endm
+
+	/*
+	 * @dst: Result of READ_ONCE(per_cpu(sym, smp_processor_id()))
+	 * @sym: The name of the per-cpu variable
+	 * @tmp: scratch register
+	 */
+	.macro ldr_this_cpu dst, sym, tmp
+	adr_l	\dst, \sym
+	mrs	\tmp, tpidr_el1
+	ldr	\dst, [\dst, \tmp]
+	.endm
+
 /*
  * vma_vm_mm - get mm pointer from vma pointer (vma->vm_mm)
  */
@@ -304,6 +326,19 @@ lr	.req	x30		// link register
 	.endm
 
 /*
+ * Return the current thread_info.
+ */
+	.macro	get_thread_info, rd
+#ifdef CONFIG_THREAD_INFO_IN_TASK
+	mrs	\rd, sp_el0
+	nop
+#else
+	mov     \rd, sp
+	and     \rd, \rd, #~(THREAD_SIZE - 1)   // top of stack
+#endif
+	.endm
+
+/*
  * Annotate a function as position independent, i.e., safe to be called before
  * the kernel virtual mapping is activated.
  */
@@ -313,13 +348,6 @@ lr	.req	x30		// link register
 	.set	__pi_##x, x;		\
 	.size	__pi_##x, . - x;	\
 	ENDPROC(x)
-
-/*
- * Return the current thread_info.
- */
-	.macro	get_thread_info, rd
-	mrs	\rd, sp_el0
-	.endm
 
 	/*
 	 * mov_q - move an immediate constant into a 64-bit register using

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-2017, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -462,6 +462,31 @@ static void ep_pcie_bar_init(struct ep_pcie_dev_t *dev)
 	ep_pcie_write_mask(dev->dm_core + PCIE20_MISC_CONTROL_1, BIT(0), 0);
 }
 
+static void ep_pcie_config_mmio(struct ep_pcie_dev_t *dev)
+{
+	EP_PCIE_DBG(dev,
+		"Initial version of MMIO is:0x%x\n",
+		readl_relaxed(dev->mmio + PCIE20_MHIVER));
+
+	if (dev->config_mmio_init) {
+		EP_PCIE_DBG(dev,
+			"PCIe V%d: MMIO already initialized, return\n",
+				dev->rev);
+		return;
+	}
+
+	ep_pcie_write_reg(dev->mmio, PCIE20_MHICFG, 0x02800880);
+	ep_pcie_write_reg(dev->mmio, PCIE20_BHI_EXECENV, 0x2);
+	ep_pcie_write_reg(dev->mmio, PCIE20_MHICTRL, 0x0);
+	ep_pcie_write_reg(dev->mmio, PCIE20_MHISTATUS, 0x0);
+	ep_pcie_write_reg(dev->mmio, PCIE20_MHIVER, 0x1000000);
+	ep_pcie_write_reg(dev->mmio, PCIE20_BHI_VERSION_LOWER, 0x2);
+	ep_pcie_write_reg(dev->mmio, PCIE20_BHI_VERSION_UPPER, 0x1);
+	ep_pcie_write_reg(dev->mmio, PCIE20_BHI_INTVEC, 0xffffffff);
+
+	dev->config_mmio_init = true;
+}
+
 static void ep_pcie_core_init(struct ep_pcie_dev_t *dev, bool configured)
 {
 	EP_PCIE_DBG(dev, "PCIe V%d\n", dev->rev);
@@ -591,9 +616,6 @@ static void ep_pcie_core_init(struct ep_pcie_dev_t *dev, bool configured)
 
 		/* Configure BARs */
 		ep_pcie_bar_init(dev);
-
-		ep_pcie_write_reg(dev->mmio, PCIE20_MHICFG, 0x02800880);
-		ep_pcie_write_reg(dev->mmio, PCIE20_BHI_EXECENV, 0x2);
 	}
 
 	/* Configure IRQ events */
@@ -621,6 +643,9 @@ static void ep_pcie_core_init(struct ep_pcie_dev_t *dev, bool configured)
 		EP_PCIE_DBG2(dev, "PCIe V%d: Enable L1.\n", dev->rev);
 		ep_pcie_write_mask(dev->parf + PCIE20_PARF_PM_CTRL, BIT(5), 0);
 	}
+
+	/* Configure MMIO */
+	ep_pcie_config_mmio(dev);
 }
 
 static void ep_pcie_config_inbound_iatu(struct ep_pcie_dev_t *dev)
@@ -735,6 +760,7 @@ static int ep_pcie_get_resources(struct ep_pcie_dev_t *dev,
 	char prop_name[MAX_PROP_SIZE];
 	const __be32 *prop;
 	u32 *clkfreq = NULL;
+	enum of_gpio_flags gpio_flags;
 
 	EP_PCIE_DBG(dev, "PCIe V%d\n", dev->rev);
 
@@ -843,10 +869,15 @@ static int ep_pcie_get_resources(struct ep_pcie_dev_t *dev,
 
 	for (i = 0; i < EP_PCIE_MAX_GPIO; i++) {
 		gpio_info = &dev->gpio[i];
-		ret = of_get_named_gpio((&pdev->dev)->of_node,
-					gpio_info->name, 0);
+		ret = of_get_named_gpio_flags((&pdev->dev)->of_node,
+					      gpio_info->name, 0, &gpio_flags);
 		if (ret >= 0) {
 			gpio_info->num = ret;
+			if (i == EP_PCIE_GPIO_MDM2AP) {
+				gpio_info->init =
+					gpio_flags & OF_GPIO_ACTIVE_LOW;
+				gpio_info->on = !gpio_info->init;
+			}
 			ret = 0;
 			EP_PCIE_DBG(dev, "GPIO num for %s is %d\n",
 				gpio_info->name, gpio_info->num);
@@ -993,6 +1024,11 @@ static void ep_pcie_release_resources(struct ep_pcie_dev_t *dev)
 	dev->phy = NULL;
 	dev->mmio = NULL;
 	dev->msi = NULL;
+
+	if (dev->bus_client) {
+		msm_bus_scale_unregister_client(dev->bus_client);
+		dev->bus_client = 0;
+	}
 }
 
 static void ep_pcie_enumeration_complete(struct ep_pcie_dev_t *dev)

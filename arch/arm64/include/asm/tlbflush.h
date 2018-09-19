@@ -107,7 +107,7 @@ static inline void flush_tlb_mm(struct mm_struct *mm)
 {
 #ifdef CONFIG_ARCH_MSM8994_V1_TLBI_WA
 	dsb();
-	asm("tlbi	vmalle1is");
+	__tlbi(vmalle1is);
 	dsb();
 	isb();
 #else
@@ -125,7 +125,7 @@ static inline void flush_tlb_page(struct vm_area_struct *vma,
 {
 #ifdef CONFIG_ARCH_MSM8994_V1_TLBI_WA
 	dsb();
-	asm("tlbi	vmalle1is");
+	__tlbi(vmalle1is);
 	dsb();
 	isb();
 #else

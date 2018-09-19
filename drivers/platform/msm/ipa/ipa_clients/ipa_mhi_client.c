@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017 The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015, 2017-2018 The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -21,13 +21,39 @@
 #include "../ipa_common_i.h"
 
 #define IPA_MHI_DRV_NAME "ipa_mhi_client"
+
 #define IPA_MHI_DBG(fmt, args...) \
-	pr_debug(IPA_MHI_DRV_NAME " %s:%d " fmt, \
-		 __func__, __LINE__, ## args)
+	do { \
+		pr_debug(IPA_MHI_DRV_NAME " %s:%d " fmt, \
+			__func__, __LINE__, ## args); \
+		IPA_IPC_LOGGING(ipa_get_ipc_logbuf(), \
+			IPA_MHI_DRV_NAME " %s:%d " fmt, ## args); \
+		IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
+			IPA_MHI_DRV_NAME " %s:%d " fmt, ## args); \
+	} while (0)
+
+#define IPA_MHI_DBG_LOW(fmt, args...) \
+	do { \
+		pr_debug(IPA_MHI_DRV_NAME " %s:%d " fmt, \
+			__func__, __LINE__, ## args); \
+		IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
+			IPA_MHI_DRV_NAME " %s:%d " fmt, ## args); \
+	} while (0)
+
+
 #define IPA_MHI_ERR(fmt, args...) \
-	pr_err(IPA_MHI_DRV_NAME " %s:%d " fmt, __func__, __LINE__, ## args)
+	do { \
+		pr_err(IPA_MHI_DRV_NAME " %s:%d " fmt, \
+			__func__, __LINE__, ## args); \
+		IPA_IPC_LOGGING(ipa_get_ipc_logbuf(), \
+				IPA_MHI_DRV_NAME " %s:%d " fmt, ## args); \
+		IPA_IPC_LOGGING(ipa_get_ipc_logbuf_low(), \
+				IPA_MHI_DRV_NAME " %s:%d " fmt, ## args); \
+	} while (0)
+
 #define IPA_MHI_FUNC_ENTRY() \
 	IPA_MHI_DBG("ENTRY\n")
+
 #define IPA_MHI_FUNC_EXIT() \
 	IPA_MHI_DBG("EXIT\n")
 
@@ -182,6 +208,12 @@ static int ipa_mhi_read_write_host(enum ipa_mhi_dma_dir dir, void *dev_addr,
 			return -ENOMEM;
 		}
 
+		res = ipa_dma_enable();
+		if (res) {
+			IPA_MHI_ERR("failed to enable IPA DMA rc=%d\n", res);
+			goto fail_dma_enable;
+		}
+
 		if (dir == IPA_MHI_DMA_FROM_HOST) {
 			res = ipa_dma_sync_memcpy(mem.phys_base, host_addr,
 				size);
@@ -203,8 +235,7 @@ static int ipa_mhi_read_write_host(enum ipa_mhi_dma_dir dir, void *dev_addr,
 				goto fail_memcopy;
 			}
 		}
-		dma_free_coherent(pdev, mem.size, mem.base,
-			mem.phys_base);
+		goto dma_succeed;
 	} else {
 		void *host_ptr;
 
@@ -227,9 +258,14 @@ static int ipa_mhi_read_write_host(enum ipa_mhi_dma_dir dir, void *dev_addr,
 	IPA_MHI_FUNC_EXIT();
 	return 0;
 
+dma_succeed:
+	IPA_MHI_FUNC_EXIT();
+	res = 0;
 fail_memcopy:
-	dma_free_coherent(ipa_get_dma_dev(), mem.size, mem.base,
-			mem.phys_base);
+	if (ipa_dma_disable())
+		IPA_MHI_ERR("failed to disable IPA DMA\n");
+fail_dma_enable:
+	dma_free_coherent(pdev, mem.size, mem.base, mem.phys_base);
 	return res;
 }
 
@@ -2083,6 +2119,15 @@ int ipa_mhi_suspend(bool force)
 		IPA_MHI_ERR("ipa_mhi_set_state failed %d\n", res);
 		return res;
 	}
+
+	res = ipa_mhi_suspend_dl(force);
+	if (res) {
+		IPA_MHI_ERR("ipa_mhi_suspend_dl failed %d\n", res);
+		goto fail_suspend_dl_channel;
+	}
+
+	usleep_range(IPA_MHI_SUSPEND_SLEEP_MIN, IPA_MHI_SUSPEND_SLEEP_MAX);
+
 	res = ipa_mhi_suspend_ul(force, &empty, &force_clear);
 	if (res) {
 		IPA_MHI_ERR("ipa_mhi_suspend_ul failed %d\n", res);
@@ -2111,12 +2156,6 @@ int ipa_mhi_suspend(bool force)
 
 	usleep_range(IPA_MHI_SUSPEND_SLEEP_MIN, IPA_MHI_SUSPEND_SLEEP_MAX);
 
-	res = ipa_mhi_suspend_dl(force);
-	if (res) {
-		IPA_MHI_ERR("ipa_mhi_suspend_dl failed %d\n", res);
-		goto fail_suspend_dl_channel;
-	}
-
 	if (!empty)
 		ipa_set_tag_process_before_gating(false);
 
@@ -2130,14 +2169,12 @@ int ipa_mhi_suspend(bool force)
 	IPA_MHI_FUNC_EXIT();
 	return 0;
 
-fail_suspend_dl_channel:
 fail_release_cons:
 	ipa_mhi_request_prod();
 fail_release_prod:
 	IPA_ACTIVE_CLIENTS_DEC_SIMPLE();
 fail_suspend_ul_channel:
 	ipa_mhi_resume_channels(true, ipa_mhi_client_ctx->ul_channels);
-	ipa_mhi_set_state(IPA_MHI_STATE_STARTED);
 	if (force_clear) {
 		if (
 		ipa_mhi_disable_force_clear(ipa_mhi_client_ctx->qmi_req_id)) {
@@ -2147,6 +2184,9 @@ fail_suspend_ul_channel:
 		IPA_MHI_DBG("force clear datapath disabled\n");
 		ipa_mhi_client_ctx->qmi_req_id++;
 	}
+fail_suspend_dl_channel:
+	ipa_mhi_resume_channels(true, ipa_mhi_client_ctx->dl_channels);
+	ipa_mhi_set_state(IPA_MHI_STATE_STARTED);
 	return res;
 }
 
@@ -2408,6 +2448,7 @@ void ipa_mhi_destroy(void)
 		goto fail;
 	}
 
+	ipa_dma_destroy();
 	ipa_mhi_debugfs_destroy();
 	destroy_workqueue(ipa_mhi_client_ctx->wq);
 	kfree(ipa_mhi_client_ctx);
@@ -2500,6 +2541,12 @@ int ipa_mhi_init(struct ipa_mhi_init_params *params)
 		goto fail_create_wq;
 	}
 
+	res = ipa_dma_init();
+	if (res) {
+		IPA_MHI_ERR("failed to init ipa dma %d\n", res);
+		goto fail_dma_init;
+	}
+
 	/* Create PROD in IPA RM */
 	memset(&mhi_prod_params, 0, sizeof(mhi_prod_params));
 	mhi_prod_params.name = IPA_RM_RESOURCE_MHI_PROD;
@@ -2557,6 +2604,8 @@ fail_create_rm_cons:
 fail_perf_rm_prod:
 	ipa_rm_delete_resource(IPA_RM_RESOURCE_MHI_PROD);
 fail_create_rm_prod:
+	ipa_dma_destroy();
+fail_dma_init:
 	destroy_workqueue(ipa_mhi_client_ctx->wq);
 fail_create_wq:
 	kfree(ipa_mhi_client_ctx);

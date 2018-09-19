@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2017-2018, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -55,6 +55,15 @@
 
 	pps {
 		use-system-time-ts;
+	};
+
+	qcom,ipc_router_external_ap_xprt {
+		compatible = "qcom,ipc-router-mhi-dev-xprt";
+		qcom,out-chan-id = <20>;
+		qcom,in-chan-id = <21>;
+		qcom,xprt-remote = "external-ap";
+		qcom,xprt-linkid = <2>;
+		qcom,xprt-version = <1>;
 	};
 };
 
