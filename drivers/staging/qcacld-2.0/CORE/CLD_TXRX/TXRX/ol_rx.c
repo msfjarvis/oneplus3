@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -297,6 +297,45 @@ ol_rx_mon_indication_handler(
 
 	if (peer)
 		ol_txrx_peer_unref_delete(peer);
+}
+
+/*
+ * ol_rx_mon_mac_header_handler() - htt rx mac header msg handler
+ * @pdev: pointer to struct ol_txrx_pdev_handle
+ * @rx_ind_msg: htt rx indication message
+ */
+void
+ol_rx_mon_mac_header_handler(
+	ol_txrx_pdev_handle pdev,
+	adf_nbuf_t rx_ind_msg)
+{
+	adf_nbuf_t head_msdu = NULL;
+	adf_nbuf_t tail_msdu = NULL;
+	adf_nbuf_t next;
+	htt_pdev_handle htt_pdev;
+
+	htt_pdev = pdev->htt_pdev;
+
+	/* only if the rx callback is ready */
+	if (NULL == pdev->osif_rx_mon_cb)
+	    return;
+
+	htt_rx_mac_header_mon_process(htt_pdev,
+				      rx_ind_msg,
+				      &head_msdu,
+				      &tail_msdu);
+
+	if (head_msdu) {
+	   if (pdev->osif_rx_mon_cb) {
+	       pdev->osif_rx_mon_cb(head_msdu);
+	   } else {
+	      while (head_msdu) {
+		next = adf_nbuf_next(head_msdu);
+		adf_nbuf_free(head_msdu);
+		head_msdu = next;
+		}
+	   }
+	}
 }
 
 void
@@ -1324,8 +1363,7 @@ ol_rx_peer_init(struct ol_txrx_pdev_t *pdev, struct ol_txrx_peer_t *peer)
         peer->security[txrx_sec_mcast].sec_type = htt_sec_type_none;
     peer->keyinstalled = 0;
     peer->last_assoc_rcvd = 0;
-    peer->last_disassoc_rcvd = 0;
-    peer->last_deauth_rcvd = 0;
+    peer->last_disassoc_deauth_rcvd = 0;
 
     adf_os_atomic_init(&peer->fw_pn_check);
 }
@@ -1335,8 +1373,7 @@ ol_rx_peer_cleanup(struct ol_txrx_vdev_t *vdev, struct ol_txrx_peer_t *peer)
 {
     peer->keyinstalled = 0;
     peer->last_assoc_rcvd = 0;
-    peer->last_disassoc_rcvd = 0;
-    peer->last_deauth_rcvd = 0;
+    peer->last_disassoc_deauth_rcvd = 0;
     ol_rx_reorder_peer_cleanup(vdev, peer);
     adf_os_mem_free(peer->reorder_history);
     peer->reorder_history = NULL;
@@ -1372,6 +1409,13 @@ ol_rx_in_order_indication_handler(
     htt_pdev_handle htt_pdev = NULL;
     int status;
     adf_nbuf_t head_msdu, tail_msdu = NULL;
+
+    if (tid >= OL_TXRX_NUM_EXT_TIDS) {
+        TXRX_PRINT(TXRX_PRINT_LEVEL_ERR,
+                   "%s: invalid tid, %u\n", __FUNCTION__, tid);
+        WARN_ON(1);
+        return;
+    }
 
     if (pdev) {
         peer = ol_txrx_peer_find_by_id(pdev, peer_id);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -3357,6 +3357,94 @@ REG_TABLE_ENTRY g_registry_table[] =
                  CFG_THERMAL_TEMP_MAX_LEVEL3_MIN,
                  CFG_THERMAL_TEMP_MAX_LEVEL3_MAX ),
 
+#ifdef FEATURE_WLAN_THERMAL_SHUTDOWN
+   REG_VARIABLE( CFG_THERMAL_SHUTDOWN_ENABLE_NAME, WLAN_PARAM_Integer,
+                 hdd_config_t, thermal_shutdown_enabled,
+                 VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                 CFG_THERMAL_SHUTDOWN_ENABLE_DEFAULT,
+                 CFG_THERMAL_SHUTDOWN_ENABLE_MIN,
+                 CFG_THERMAL_SHUTDOWN_ENABLE_MAX),
+
+   REG_VARIABLE( CFG_THERMAL_SHUTDOWN_AUTO_ENABLE_NAME, WLAN_PARAM_Integer,
+                 hdd_config_t, thermal_shutdown_auto_enabled,
+                 VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                 CFG_THERMAL_SHUTDOWN_AUTO_ENABLE_DEFAULT,
+                 CFG_THERMAL_SHUTDOWN_AUTO_ENABLE_MIN,
+                 CFG_THERMAL_SHUTDOWN_AUTO_ENABLE_MAX),
+
+   REG_VARIABLE( CFG_THERMAL_SHUTDOWN_TEMP_RESUME_NAME, WLAN_PARAM_Integer,
+                 hdd_config_t, thermal_resume_threshold,
+                 VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                 CFG_THERMAL_SHUTDOWN_TEMP_RESUME_DEFAULT,
+                 CFG_THERMAL_SHUTDOWN_TEMP_RESUME_MIN,
+                 CFG_THERMAL_SHUTDOWN_TEMP_RESUME_MAX),
+
+   REG_VARIABLE( CFG_THERMAL_SHUTDOWN_TEMP_WARNING_NAME, WLAN_PARAM_Integer,
+                 hdd_config_t, thermal_warning_threshold,
+                 VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                 CFG_THERMAL_SHUTDOWN_TEMP_WARNING_DEFAULT,
+                 CFG_THERMAL_SHUTDOWN_TEMP_WARNING_MIN,
+                 CFG_THERMAL_SHUTDOWN_TEMP_WARNING_MAX),
+
+   REG_VARIABLE( CFG_THERMAL_SHUTDOWN_TEMP_SUSPEND_NAME, WLAN_PARAM_Integer,
+                 hdd_config_t, thermal_suspend_threshold,
+                 VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                 CFG_THERMAL_SHUTDOWN_TEMP_SUSPEND_DEFAULT,
+                 CFG_THERMAL_SHUTDOWN_TEMP_SUSPEND_MIN,
+                 CFG_THERMAL_SHUTDOWN_TEMP_SUSPEND_MAX),
+
+   REG_VARIABLE( CFG_THERMAL_SAMPLE_RATE_NAME, WLAN_PARAM_Integer,
+                 hdd_config_t, thermal_sample_rate,
+                 VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                 CFG_THERMAL_SAMPLE_RATE_DEFAULT,
+                 CFG_THERMAL_SAMPLE_RATE_MIN,
+                 CFG_THERMAL_SAMPLE_RATE_MAX),
+#endif /* FEATURE_WLAN_THERMAL_SHUTDOWN */
+
+   REG_VARIABLE( CFG_REMOVE_TIME_STAMP_SYNC_CMD_NAME, WLAN_PARAM_Integer,
+                 hdd_config_t, remove_time_stamp_sync_cmd,
+                 VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                 CFG_REMOVE_TIME_STAMP_SYNC_CMD_DEFAULT,
+                 CFG_REMOVE_TIME_STAMP_SYNC_CMD_MIN,
+                 CFG_REMOVE_TIME_STAMP_SYNC_CMD_MAX),
+
+   /* Runtime DPD Recaliberation INI Parameters BEGINS */
+   REG_VARIABLE( CFG_DPD_RECALIB_ENABLE_NAME, WLAN_PARAM_Integer,
+                 hdd_config_t, dpd_recalib_enabled,
+                 VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                 CFG_DPD_RECALIB_ENABLE_DEFAULT,
+                 CFG_DPD_RECALIB_ENABLE_MIN,
+                 CFG_DPD_RECALIB_ENABLE_MAX),
+
+   REG_VARIABLE( CFG_DPD_RECALIB_DELTA_DEGREE_HIGH_NAME, WLAN_PARAM_Integer,
+                 hdd_config_t, dpd_recalib_delta_degreehigh,
+                 VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                 CFG_DPD_RECALIB_DELTA_DEGREE_HIGH_DEFAULT,
+                 CFG_DPD_RECALIB_DELTA_DEGREE_HIGH_MIN,
+                 CFG_DPD_RECALIB_DELTA_DEGREE_HIGH_MAX),
+
+   REG_VARIABLE( CFG_DPD_RECALIB_DELTA_DEGREE_LOW_NAME, WLAN_PARAM_Integer,
+                 hdd_config_t, dpd_recalib_delta_degreelow,
+                 VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                 CFG_DPD_RECALIB_DELTA_DEGREE_LOW_DEFAULT,
+                 CFG_DPD_RECALIB_DELTA_DEGREE_LOW_MIN,
+                 CFG_DPD_RECALIB_DELTA_DEGREE_LOW_MAX),
+
+   REG_VARIABLE( CFG_DPD_RECALIB_COOLING_TIME_NAME, WLAN_PARAM_Integer,
+                 hdd_config_t, dpd_recalib_cooling_time,
+                 VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                 CFG_DPD_RECALIB_COOLING_TIME_DEFAULT,
+                 CFG_DPD_RECALIB_COOLING_TIME_MIN,
+                 CFG_DPD_RECALIB_COOLING_TIME_MAX),
+
+   REG_VARIABLE( CFG_DPD_RECALIB_DURATION_MAX_NAME, WLAN_PARAM_Integer,
+                 hdd_config_t, dpd_recalib_duration_max,
+                 VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                 CFG_DPD_RECALIB_DURATION_MAX_DEFAULT,
+                 CFG_DPD_RECALIB_DURATION_MAX_MIN,
+                 CFG_DPD_RECALIB_DURATION_MAX_MAX),
+   /* DPD Runtime Recaliberation INI Parameters END */
+
   REG_VARIABLE( CFG_SET_TXPOWER_LIMIT2G_NAME , WLAN_PARAM_Integer,
                 hdd_config_t, TxPower2g,
                 VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
@@ -3899,6 +3987,13 @@ REG_TABLE_ENTRY g_registry_table[] =
               CFG_ENABLE_SIFS_BURST_MIN,
               CFG_ENABLE_SIFS_BURST_MAX ),
 
+   REG_VARIABLE(CFG_KEEP_PASSIVE_DWELL_TIME, WLAN_PARAM_Integer,
+               hdd_config_t, keeppassivedwelltime,
+               VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+               CFG_KEEP_PASSIVE_DWELL_TIME_DEFAULT,
+               CFG_KEEP_PASSIVE_DWELL_TIME_MIN,
+               CFG_KEEP_PASSIVE_DWELL_TIME_MAX),
+
 #ifdef WLAN_FEATURE_LPSS
    REG_VARIABLE(CFG_ENABLE_LPASS_SUPPORT, WLAN_PARAM_Integer,
                hdd_config_t, enablelpasssupport,
@@ -4234,6 +4329,16 @@ REG_TABLE_ENTRY g_registry_table[] =
               CFG_CONNECT_BLOCK_DURATION_MIN,
               CFG_CONNECT_BLOCK_DURATION_MAX ),
 #endif /* SAP_AUTH_OFFLOAD */
+
+#ifdef WLAN_FEATURE_SAP_TO_FOLLOW_STA_CHAN
+   REG_VARIABLE( CFG_SAP_CHANNEL_SWITCH_WITH_CSA_NAME, WLAN_PARAM_Integer,
+              hdd_config_t, sap_ch_switch_with_csa,
+              VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+              CFG_SAP_CHANNEL_SWITCH_WITH_CSA_DEFAULT,
+              CFG_SAP_CHANNEL_SWITCH_WITH_CSA_MIN,
+              CFG_SAP_CHANNEL_SWITCH_WITH_CSA_MAX ),
+
+#endif//#ifdef WLAN_FEATURE_SAP_TO_FOLLOW_STA_CHAN
 
    REG_VARIABLE(CFG_DOT11P_MODE_NAME, WLAN_PARAM_Integer,
                 hdd_config_t, dot11p_mode,
@@ -4610,6 +4715,13 @@ REG_TABLE_ENTRY g_registry_table[] =
                 CFG_WOW_PULSE_INTERVAL_HIGH_DEFAULT,
                 CFG_WOW_PULSE_INTERVAL_HIGH_MIN,
                 CFG_WOW_PULSE_INTERVAL_HIGH_MAX),
+
+   REG_VARIABLE(CFG_WOW_PULSE_REPEAT_COUNT_NAME, WLAN_PARAM_Integer,
+                hdd_config_t, wow_pulse_repeat_count,
+                VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                CFG_WOW_PULSE_REPEAT_COUNT_DEFAULT,
+                CFG_WOW_PULSE_REPEAT_COUNT_MIN,
+                CFG_WOW_PULSE_REPEAT_COUNT_MAX),
 #endif
 
    REG_VARIABLE(CFG_MIB_STATS_ENABLED_NAME, WLAN_PARAM_Integer,
@@ -4713,6 +4825,63 @@ REG_TABLE_ENTRY g_registry_table[] =
                 CFG_RX_AGGREGATION_SIZE_DEFAULT,
                 CFG_RX_AGGREGATION_SIZE_MIN,
                 CFG_RX_AGGREGATION_SIZE_MAX),
+
+   REG_VARIABLE(CFG_TX_AGGR_SW_RETRY_BE, WLAN_PARAM_Integer,
+                hdd_config_t, tx_aggr_sw_retry_threshhold_be,
+                VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                CFG_TX_AGGR_SW_RETRY_BE_DEFAULT,
+                CFG_TX_AGGR_SW_RETRY_BE_MIN,
+                CFG_TX_AGGR_SW_RETRY_BE_MAX),
+
+   REG_VARIABLE(CFG_TX_AGGR_SW_RETRY_BK, WLAN_PARAM_Integer,
+                hdd_config_t, tx_aggr_sw_retry_threshhold_bk,
+                VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                CFG_TX_AGGR_SW_RETRY_BK_DEFAULT,
+                CFG_TX_AGGR_SW_RETRY_BK_MIN,
+                CFG_TX_AGGR_SW_RETRY_BK_MAX),
+
+   REG_VARIABLE(CFG_TX_AGGR_SW_RETRY_VI, WLAN_PARAM_Integer,
+                hdd_config_t, tx_aggr_sw_retry_threshhold_vi,
+                VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                CFG_TX_AGGR_SW_RETRY_VI_DEFAULT,
+                CFG_TX_AGGR_SW_RETRY_VI_MIN,
+                CFG_TX_AGGR_SW_RETRY_VI_MAX),
+
+   REG_VARIABLE(CFG_TX_AGGR_SW_RETRY_VO, WLAN_PARAM_Integer,
+                hdd_config_t, tx_aggr_sw_retry_threshhold_vo,
+                VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                CFG_TX_AGGR_SW_RETRY_VO_DEFAULT,
+                CFG_TX_AGGR_SW_RETRY_VO_MIN,
+                CFG_TX_AGGR_SW_RETRY_VO_MAX),
+
+   REG_VARIABLE(CFG_TX_NON_AGGR_SW_RETRY_BE, WLAN_PARAM_Integer,
+                hdd_config_t, tx_non_aggr_sw_retry_threshhold_be,
+                VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                CFG_TX_NON_AGGR_SW_RETRY_BE_DEFAULT,
+                CFG_TX_NON_AGGR_SW_RETRY_BE_MIN,
+                CFG_TX_NON_AGGR_SW_RETRY_BE_MAX),
+
+   REG_VARIABLE(CFG_TX_NON_AGGR_SW_RETRY_BK, WLAN_PARAM_Integer,
+                hdd_config_t, tx_non_aggr_sw_retry_threshhold_bk,
+                VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                CFG_TX_NON_AGGR_SW_RETRY_BK_DEFAULT,
+                CFG_TX_NON_AGGR_SW_RETRY_BK_MIN,
+                CFG_TX_NON_AGGR_SW_RETRY_BK_MAX),
+
+   REG_VARIABLE(CFG_TX_NON_AGGR_SW_RETRY_VI, WLAN_PARAM_Integer,
+                hdd_config_t, tx_non_aggr_sw_retry_threshhold_vi,
+                VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                CFG_TX_NON_AGGR_SW_RETRY_VI_DEFAULT,
+                CFG_TX_NON_AGGR_SW_RETRY_VI_MIN,
+                CFG_TX_NON_AGGR_SW_RETRY_VI_MAX),
+
+   REG_VARIABLE(CFG_TX_NON_AGGR_SW_RETRY_VO, WLAN_PARAM_Integer,
+                hdd_config_t, tx_non_aggr_sw_retry_threshhold_vo,
+                VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+                CFG_TX_NON_AGGR_SW_RETRY_VO_DEFAULT,
+                CFG_TX_NON_AGGR_SW_RETRY_VO_MIN,
+                CFG_TX_NON_AGGR_SW_RETRY_VO_MAX),
+
    REG_VARIABLE(CFG_CREATE_BUG_REPORT_FOR_SCAN, WLAN_PARAM_Integer,
                 hdd_config_t, bug_report_for_scan_results,
                 VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
@@ -5195,6 +5364,20 @@ REG_TABLE_ENTRY g_registry_table[] =
 		CFG_CCA_THRESHOLD_5G_DEFAULT,
 		CFG_CCA_THRESHOLD_5G_MIN,
 		CFG_CCA_THRESHOLD_5G_MAX),
+
+	REG_VARIABLE(CFG_SKIP_CRASH_INJECT_NAME, WLAN_PARAM_Integer,
+		hdd_config_t, skip_crash_inject,
+		VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		CFG_SKIP_CRASH_INJECT_DEFAULT,
+		CFG_SKIP_CRASH_INJECT_MIN,
+		CFG_SKIP_CRASH_INJECT_MAX),
+
+	REG_VARIABLE(CFG_ENABLE_MONITOR_ON_STA, WLAN_PARAM_Integer,
+		     hdd_config_t, mon_on_sta_enable,
+		     VAR_FLAGS_OPTIONAL | VAR_FLAGS_RANGE_CHECK_ASSUME_DEFAULT,
+		     CFG_ENABLE_MONITOR_ON_STA_DEFAULT,
+		     CFG_ENABLE_MONITOR_ON_STA_MIN,
+		     CFG_ENABLE_MONITOR_ON_STA_MAX),
 };
 
 
@@ -5395,13 +5578,14 @@ VOS_STATUS hdd_parse_config_ini(hdd_context_t* pHddCtx)
    hddLog(LOG1, "%s: qcom_cfg.ini Size %zu", __func__, fw->size);
 
    buffer = (char*)vos_mem_malloc(fw->size + 1);
-   buffer[fw->size] = '\0';
 
    if(NULL == buffer) {
       hddLog(VOS_TRACE_LEVEL_FATAL, "%s: kmalloc failure",__func__);
       release_firmware(fw);
       return VOS_STATUS_E_FAILURE;
    }
+
+   buffer[fw->size] = '\0';
    pTemp = buffer;
 
    vos_mem_copy((void*)buffer,(void *)fw->data, fw->size);
@@ -5511,6 +5695,11 @@ void print_hdd_cfg(hdd_context_t *pHddCtx)
              "Name = [sap_channel_avoidance] value = [%u]",
              pHddCtx->cfg_ini->sap_channel_avoidance);
 #endif /* FEATURE_AP_MCC_CH_AVOIDANCE */
+
+  VOS_TRACE (VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH,
+             "Name = [%s] value = [%u]", CFG_REMOVE_TIME_STAMP_SYNC_CMD_NAME,
+             pHddCtx->cfg_ini->remove_time_stamp_sync_cmd);
+
   VOS_TRACE (VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH,
              "Name = [%s] value = [%u]", CFG_SAP_P2P_11AC_OVERRIDE_NAME,
              pHddCtx->cfg_ini->sap_p2p_11ac_override);
@@ -5888,6 +6077,10 @@ void print_hdd_cfg(hdd_context_t *pHddCtx)
           "Name = [gIpaUcStaOffload] Value = [%u] ",
                    pHddCtx->cfg_ini->ipa_uc_sta_offload);
 #endif
+
+  VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH,
+          "Name = [gSkipCrashInject] Value = [%u] ",
+                   pHddCtx->cfg_ini->skip_crash_inject);
 
 #ifdef DHCP_SERVER_OFFLOAD
   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH,
@@ -6302,6 +6495,12 @@ static void update_mac_from_string(hdd_context_t *pHddCtx, tCfgIniEntry *macTabl
             break;
       }
       if (res == 0 && !vos_is_macaddr_zero(&macaddr[i])) {
+         hddLog(VOS_TRACE_LEVEL_INFO,
+                "wlan_mac.bin update mac addr[%d] from " MAC_ADDRESS_STR
+                " to " MAC_ADDRESS_STR,
+                i,
+                MAC_ADDR_ARRAY(pHddCtx->cfg_ini->intfMacAddr[i].bytes),
+                MAC_ADDR_ARRAY(macaddr[i].bytes));
          vos_mem_copy((v_U8_t *)&pHddCtx->cfg_ini->intfMacAddr[i].bytes[0],
                       (v_U8_t *)&macaddr[i].bytes[0], VOS_MAC_ADDR_SIZE);
       }
@@ -7819,6 +8018,20 @@ v_BOOL_t hdd_update_config_dat( hdd_context_t *pHddCtx )
        hddLog(LOGE, "Could not pass on WNI_CFG_RATE_FOR_TX_MGMT_5G to CCM");
    }
 
+   if (ccmCfgSetInt(pHddCtx->hHal, WNI_CFG_REMOVE_TIME_SYNC_CMD,
+                    pConfig->remove_time_stamp_sync_cmd, NULL,
+                    eANI_BOOLEAN_FALSE) == eHAL_STATUS_FAILURE) {
+       fStatus = FALSE;
+       hddLog(LOGE, "Could not pass on WNI_CFG_REMOVE_TIME_SYNC_CMD to CCM");
+   }
+
+   if (ccmCfgSetInt(pHddCtx->hHal, WNI_CFG_SKIP_CRASH_INJECT,
+                    pConfig->skip_crash_inject, NULL,
+                    eANI_BOOLEAN_FALSE) == eHAL_STATUS_FAILURE) {
+       fStatus = FALSE;
+       hddLog(LOGE, "Could not pass on WNI_CFG_SKIP_CRASH_INJECT to CCM");
+   }
+
    return fStatus;
 }
 
@@ -8177,6 +8390,22 @@ VOS_STATUS hdd_set_sme_config( hdd_context_t *pHddCtx )
                    pHddCtx->cfg_ini->tx_aggregation_size;
    smeConfig->csrConfig.rx_aggregation_size =
                    pHddCtx->cfg_ini->rx_aggregation_size;
+   smeConfig->csrConfig.tx_aggr_sw_retry_threshhold_be =
+                   pHddCtx->cfg_ini->tx_aggr_sw_retry_threshhold_be;
+   smeConfig->csrConfig.tx_aggr_sw_retry_threshhold_bk =
+                   pHddCtx->cfg_ini->tx_aggr_sw_retry_threshhold_bk;
+   smeConfig->csrConfig.tx_aggr_sw_retry_threshhold_vi =
+                   pHddCtx->cfg_ini->tx_aggr_sw_retry_threshhold_vi;
+   smeConfig->csrConfig.tx_aggr_sw_retry_threshhold_vo =
+                   pHddCtx->cfg_ini->tx_aggr_sw_retry_threshhold_vo;
+   smeConfig->csrConfig.tx_non_aggr_sw_retry_threshhold_be =
+                   pHddCtx->cfg_ini->tx_non_aggr_sw_retry_threshhold_be;
+   smeConfig->csrConfig.tx_non_aggr_sw_retry_threshhold_bk =
+                   pHddCtx->cfg_ini->tx_non_aggr_sw_retry_threshhold_bk;
+   smeConfig->csrConfig.tx_non_aggr_sw_retry_threshhold_vi =
+                   pHddCtx->cfg_ini->tx_non_aggr_sw_retry_threshhold_vi;
+   smeConfig->csrConfig.tx_non_aggr_sw_retry_threshhold_vo =
+                   pHddCtx->cfg_ini->tx_non_aggr_sw_retry_threshhold_vo;
 
    smeConfig->csrConfig.enable_edca_params =
                         pHddCtx->cfg_ini->enable_edca_params;
@@ -8225,6 +8454,9 @@ VOS_STATUS hdd_set_sme_config( hdd_context_t *pHddCtx )
    smeConfig->sta_change_cc_via_beacon =
 	 pHddCtx->cfg_ini->sta_change_cc_via_beacon;
 
+#ifdef WLAN_FEATURE_SAP_TO_FOLLOW_STA_CHAN
+   smeConfig->csrConfig.sap_ch_switch_with_csa = pHddCtx->cfg_ini->sap_ch_switch_with_csa;
+#endif//#ifdef WLAN_FEATURE_SAP_TO_FOLLOW_STA_CHAN
    halStatus = sme_UpdateConfig( pHddCtx->hHal, smeConfig);
    if ( !HAL_STATUS_SUCCESS( halStatus ) )
    {

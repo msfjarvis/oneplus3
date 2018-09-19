@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -797,8 +797,20 @@ typedef struct sSirMbMsgP2p
 
 #define SIR_HAL_PEER_FLUSH_PENDING          (SIR_HAL_ITC_MSG_TYPES_BEGIN + 375)
 #define SIR_HAL_SET_AC_TXQ_OPTIMIZE         (SIR_HAL_ITC_MSG_TYPES_BEGIN + 376)
+#define SIR_HAL_MNT_FILTER_TYPE_CMD         (SIR_HAL_ITC_MSG_TYPES_BEGIN + 377)
 
-#define SIR_HAL_MSG_TYPES_END              (SIR_HAL_MSG_TYPES_BEGIN + 0x1FF)
+#define SIR_HAL_INIT_DPD_RECAL_INFO_CMD     (SIR_HAL_ITC_MSG_TYPES_BEGIN + 378)
+
+#ifdef WLAN_FEATURE_MOTION_DETECTION
+#define SIR_HAL_SET_MOTION_DET_CONFIG       (SIR_HAL_ITC_MSG_TYPES_BEGIN + 379)
+#define SIR_HAL_SET_MOTION_DET_ENABLE       (SIR_HAL_ITC_MSG_TYPES_BEGIN + 380)
+#define SIR_HAL_SET_MOTION_DET_BASE_LINE_CONFIG (SIR_HAL_ITC_MSG_TYPES_BEGIN + 381)
+#define SIR_HAL_SET_MOTION_DET_BASE_LINE_ENABLE (SIR_HAL_ITC_MSG_TYPES_BEGIN + 382)
+#endif
+
+#define SIR_HAL_THERM_THROT_SET_CONF_CMD    (SIR_HAL_ITC_MSG_TYPES_BEGIN + 383)
+#define SIR_HAL_THERM_MGMT_CMD              (SIR_HAL_ITC_MSG_TYPES_BEGIN + 384)
+#define SIR_HAL_MSG_TYPES_END               (SIR_HAL_MSG_TYPES_BEGIN + 0x1FF)
 
 // CFG message types
 #define SIR_CFG_MSG_TYPES_BEGIN        (SIR_CFG_MODULE_ID << 8)

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -511,36 +511,33 @@ static bool tlshim_is_pkt_drop_candidate(tp_wma_handle wma_handle,
 
 	switch (subtype) {
 	case IEEE80211_FC0_SUBTYPE_ASSOC_REQ:
-		if (peer->last_assoc_rcvd) {
-			if (adf_os_gettimestamp() - peer->last_assoc_rcvd <
-			    TLSHIM_MGMT_FRAME_DETECT_DOS_TIMER) {
-				TLSHIM_LOGD(FL("Dropping Assoc Req received"));
-				should_drop = TRUE;
-			}
+		if (peer->last_assoc_rcvd &&
+		    vos_system_time_after(peer->last_assoc_rcvd +
+					  TLSHIM_MGMT_FRAME_DETECT_DOS_TIMER,
+					  adf_os_gettimestamp())) {
+			TLSHIM_LOGD(FL("Dropping Assoc Req as it is received after %d ms of last frame. Allow it only after %d ms"),
+				    (int) (adf_os_gettimestamp() -
+				    peer->last_assoc_rcvd),
+				    TLSHIM_MGMT_FRAME_DETECT_DOS_TIMER);
+			should_drop = TRUE;
+			break;
 		}
 		peer->last_assoc_rcvd = adf_os_gettimestamp();
 		break;
 	case IEEE80211_FC0_SUBTYPE_DISASSOC:
-		if (peer->last_disassoc_rcvd) {
-			if (adf_os_gettimestamp() -
-			    peer->last_disassoc_rcvd <
-			    TLSHIM_MGMT_FRAME_DETECT_DOS_TIMER) {
-				TLSHIM_LOGD(FL("Dropping DisAssoc received"));
-				should_drop = TRUE;
-			}
-		}
-		peer->last_disassoc_rcvd = adf_os_gettimestamp();
-		break;
 	case IEEE80211_FC0_SUBTYPE_DEAUTH:
-		if (peer->last_deauth_rcvd) {
-			if (adf_os_gettimestamp() -
-			    peer->last_deauth_rcvd <
-			    TLSHIM_MGMT_FRAME_DETECT_DOS_TIMER) {
-				TLSHIM_LOGD(FL("Dropping Deauth received"));
-				should_drop = TRUE;
-			}
+		if (peer->last_disassoc_deauth_rcvd &&
+		    vos_system_time_after(peer->last_disassoc_deauth_rcvd +
+					  TLSHIM_MGMT_FRAME_DETECT_DOS_TIMER,
+					  adf_os_gettimestamp())) {
+			TLSHIM_LOGD(FL("Dropping subtype %x frame as it is received after %d ms of last frame. Allow it only after %d ms"),
+				    subtype, (int) (adf_os_gettimestamp() -
+				    peer->last_disassoc_deauth_rcvd),
+				    TLSHIM_MGMT_FRAME_DETECT_DOS_TIMER);
+			should_drop = TRUE;
+			break;
 		}
-		peer->last_deauth_rcvd = adf_os_gettimestamp();
+		peer->last_disassoc_deauth_rcvd = adf_os_gettimestamp();
 		break;
 	default:
 		break;
@@ -550,6 +547,7 @@ end:
 	return should_drop;
 }
 
+#define RESERVE_BYTES   100
 static int tlshim_mgmt_rx_process(void *context, u_int8_t *data,
 				       u_int32_t data_len, bool saved_beacon, u_int32_t vdev_id)
 {
@@ -661,9 +659,28 @@ static int tlshim_mgmt_rx_process(void *context, u_int8_t *data,
      */
 	rx_pkt->pkt_meta.roamCandidateInd = saved_beacon ? 1 : 0;
 	rx_pkt->pkt_meta.sessionId = vdev_id;
-	/* Why not just use rx_event->hdr.buf_len? */
+	/*
+	 * Allocate the memory for this rx packet, add extra 100 bytes for:-
+	 *
+	 * 1.  Filling the missing RSN capabilites by some APs, which fill the
+	 *     RSN IE length as extra 2 bytes but dont fill the IE data with
+	 *     capabilities, resulting in failure in unpack core due to length
+	 *     mismatch. Check sir_validate_and_rectify_ies for more info.
+	 *
+	 * 2.  In the API wma_process_rmf_frame(), the driver trims the CCMP
+	 *     header by overwriting the IEEE header to memory occupied by CCMP
+	 *     header, but an overflow is possible if the memory allocated to
+	 *     frame is less than the sizeof(struct ieee80211_frame) +CCMP
+	 *     HEADER len, so allocating 100 bytes would solve this issue too.
+	 *
+	 * 3.  CCMP header is pointing to orig_hdr +
+	 *     sizeof(struct ieee80211_frame) which could also result in OOB
+	 *     access, if the data len is less than
+	 *     sizeof(struct ieee80211_frame), allocating extra bytes would
+	 *     result in solving this issue too.
+	 */
 	wbuf = adf_nbuf_alloc(NULL,
-			      roundup(hdr->buf_len, 4),
+			      roundup(hdr->buf_len + RESERVE_BYTES, 4),
 			      0, 4, FALSE);
 	if (!wbuf) {
 		adf_os_spin_unlock_bh(&tl_shim->mgmt_lock);
@@ -1184,6 +1201,29 @@ static void tl_shim_cache_flush_work(struct work_struct *work)
 
 		tl_shim_flush_rx_frames(vos_ctx, tl_shim, i, 0);
 	}
+}
+
+/*
+ * TLSHIM virtual monitor mode RX callback,
+ * registered for OL data indication.
+ */
+
+static void tl_shim_vir_mon_rx(adf_nbuf_t rx_buf_list)
+{
+	struct txrx_tl_shim_ctx *tl_shim;
+	void *vos_ctx = vos_get_global_context(VOS_MODULE_ID_TL, NULL);
+
+	tl_shim = vos_get_context(VOS_MODULE_ID_TL, vos_ctx);
+
+	if (!tl_shim) {
+		TLSHIM_LOGE("%s: Failed to get TLSHIM context", __func__);
+		return;
+	}
+
+	if (tl_shim->rx_monitor_cb)
+		tl_shim->rx_monitor_cb(vos_ctx, rx_buf_list, 0);
+	else
+		TLSHIM_LOGE("%s: tl_shim->rx_monitor_cb is NULL", __func__);
 }
 
 /*************************/
@@ -1935,6 +1975,57 @@ VOS_STATUS WLANTL_RegisterSTAClient(void *vos_ctx,
 
 	/* Schedule a worker to flush cached rx frames */
 	schedule_work(&tl_shim->cache_flush_work);
+
+	return VOS_STATUS_SUCCESS;
+}
+
+VOS_STATUS tl_register_vir_mon_cb(void *vos_ctx,
+				  WLANTL_STARxCBType rxcb)
+{
+	struct txrx_tl_shim_ctx *tl_shim;
+	ol_txrx_pdev_handle pdev;
+
+	tl_shim = vos_get_context(VOS_MODULE_ID_TL, vos_ctx);
+	if (!tl_shim) {
+		TLSHIM_LOGE("tl_shim is NULL");
+		return VOS_STATUS_E_FAULT;
+	}
+
+	pdev = vos_get_context(VOS_MODULE_ID_TXRX, vos_ctx);
+	if (!pdev) {
+		TLSHIM_LOGE("%s: Failed to find pdev", __func__);
+		return VOS_STATUS_E_FAULT;
+	}
+
+	tl_shim->rx_monitor_cb = rxcb;
+
+	/* register TLSHIM RX montior callback to OL */
+	ol_txrx_osif_pdev_mon_register_cbk(pdev, tl_shim_vir_mon_rx);
+
+	return VOS_STATUS_SUCCESS;
+}
+
+VOS_STATUS tl_deregister_vir_mon_cb(void *vos_ctx)
+{
+	struct txrx_tl_shim_ctx *tl_shim;
+	ol_txrx_pdev_handle pdev;
+
+	tl_shim = vos_get_context(VOS_MODULE_ID_TL, vos_ctx);
+	if (!tl_shim) {
+		TLSHIM_LOGE("tl_shim is NULL");
+		return VOS_STATUS_E_FAULT;
+	}
+
+	pdev = vos_get_context(VOS_MODULE_ID_TXRX, vos_ctx);
+	if (!pdev) {
+		TLSHIM_LOGE("%s: Failed to find pdev", __func__);
+		return VOS_STATUS_E_FAULT;
+	}
+
+	tl_shim->rx_monitor_cb = NULL;
+
+	/* register TLSHIM RX montior callback to OL */
+	ol_txrx_osif_pdev_mon_register_cbk(pdev, NULL);
 
 	return VOS_STATUS_SUCCESS;
 }

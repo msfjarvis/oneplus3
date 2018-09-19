@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -246,7 +246,24 @@ typedef struct {
     u_int8_t smeThermalMgmtEnabled;
     u_int32_t smeThrottlePeriod;
     u_int8_t sme_throttle_duty_cycle_tbl[SME_MAX_THROTTLE_LEVELS];
+#ifdef FEATURE_WLAN_THERMAL_SHUTDOWN
+    uint8_t  thermal_shutdown_enabled;
+    uint8_t  thermal_shutdown_auto_enabled;
+    uint16_t thermal_resume_threshold;
+    uint16_t thermal_warning_threshold;
+    uint16_t thermal_suspend_threshold;
+    uint16_t thermal_sample_rate;
+#endif
+
 } tSmeThermalParams;
+
+typedef struct {
+    u_int32_t enable;
+    u_int32_t delta_degreeHigh;
+    u_int32_t delta_degreeLow;
+    u_int32_t cooling_time;
+    u_int32_t dpd_dur_max;
+} tSmeDPDRecalParams;
 
 #ifdef WLAN_FEATURE_APFIND
 struct sme_ap_find_request_req{
@@ -286,6 +303,12 @@ struct sme_5g_band_pref_params {
 	int8_t      rssi_penalize_threshold_5g;
 	uint8_t     rssi_penalize_factor_5g;
 	uint8_t     max_rssi_penalize_5g;
+};
+
+struct sme_mnt_filter_type_req{
+    u_int32_t vdev_id;
+    u_int16_t request_data_len;
+    u_int8_t* request_data;
 };
 
 /*-------------------------------------------------------------------------
@@ -3810,6 +3833,14 @@ eHalStatus sme_RoamCsaIeRequest(tHalHandle hHal, tCsrBssid bssid,
 eHalStatus sme_InitThermalInfo( tHalHandle hHal, tSmeThermalParams thermalParam );
 /* ---------------------------------------------------------------------------
     \fn sme_InitThermalInfo
+    \brief  SME API to initialize the thermal mitigation parameters
+    \param  hHal
+    \param  thermalParam : thermal mitigation parameters
+    \- return eHalStatus
+    -------------------------------------------------------------------------*/
+eHalStatus sme_InitDPDRecalInfo( tHalHandle hHal, tSmeDPDRecalParams thermalParam );
+/* ---------------------------------------------------------------------------
+    \fn sme_InitThermalInfo
     \brief  SME API to set the thermal mitigation level
     \param  hHal
     \param  level : thermal mitigation level
@@ -4090,15 +4121,6 @@ eHalStatus sme_UpdateDFSScanMode(tHalHandle hHal,
   \sa
   --------------------------------------------------------------------------*/
 v_BOOL_t sme_GetDFSScanMode(tHalHandle hHal);
-
-/* ---------------------------------------------------------------------------
-    \fn sme_staInMiddleOfRoaming
-    \brief  This function returns TRUE if STA is in the middle of roaming state
-    \param  hHal - HAL handle for device
-    \param  sessionId - Session identifier
-    \- return TRUE or FALSE
-    -------------------------------------------------------------------------*/
-tANI_BOOLEAN sme_staInMiddleOfRoaming(tHalHandle hHal, tANI_U8 sessionId);
 
 /* ---------------------------------------------------------------------------
     \fn sme_PsOffloadIsStaInPowerSave
@@ -4509,6 +4531,14 @@ eHalStatus sme_set_tsfcb(tHalHandle hHal,
 VOS_STATUS sme_apfind_set_cmd(struct sme_ap_find_request_req *input);
 #endif /* WLAN_FEATURE_APFIND */
 
+#ifdef WLAN_FEATURE_SAP_TO_FOLLOW_STA_CHAN
+eHalStatus sme_AddCSAIndCallback
+(
+   tHalHandle hHal,
+   void (*pCallbackfn)(void *pAdapter, void *CSAindParam)
+);
+#endif//#ifdef
+
 /**
  * sme_enable_disable_mas() - Function to set MAS value to UMAC
  * @val:        1-Enable, 0-Disable
@@ -4605,6 +4635,17 @@ uint8_t    sme_is_any_session_in_connected_state(tHalHandle h_hal);
 typedef void ( *tSmeSetThermalLevelCallback)(void *pContext, u_int8_t level);
 void sme_add_set_thermal_level_callback(tHalHandle hHal,
                    tSmeSetThermalLevelCallback callback);
+typedef void (*tSmeThermalTempIndCb)(void *pContext, u_int32_t degree_c);
+/**
+ * sme_add_thermal_temperature_ind_callback() - Set callback fn for thermal
+ * temperature indication
+ * hHal: Handler to HAL
+ * callback: The callback function
+ *
+ * Return: void
+ */
+void sme_add_thermal_temperature_ind_callback(tHalHandle hHal,
+                   tSmeThermalTempIndCb callback);
 
 eHalStatus sme_handle_set_fcc_channel(tHalHandle hHal,
 		bool fcc_constraint,
@@ -4827,4 +4868,109 @@ eHalStatus sme_set_chip_pwr_save_fail_cb(tHalHandle hal, void (*cb)( void *,
 
 eHalStatus sme_set_ac_txq_optimize(tHalHandle hal_handle, uint8_t *value);
 
+VOS_STATUS sme_mnt_filter_type_cmd(struct sme_mnt_filter_type_req *input);
+
+/**
+ * sme_is_sta_key_exchange_in_progress() - checks whether the STA/P2P client
+ * session has key exchange in progress
+ *
+ * @hal: global hal handle
+ * @session_id: session id
+ *
+ * Return: true - if key exchange in progress
+ *         false - if not in progress
+ */
+bool sme_is_sta_key_exchange_in_progress(tHalHandle hal, uint8_t session_id);
+
+#ifdef WLAN_FEATURE_MOTION_DETECTION
+typedef struct {
+	uint8_t vdev_id;                             /** Vdev ID */
+	uint32_t time_t1;                             /** T1 for motion detection (in ms) */
+	uint32_t time_t2;                             /** T2 for fine motion detection (in ms) */
+	uint32_t n1;                                  /** number of packets for coarse detection */
+	uint32_t n2;                                  /** number of packets for fine detection */
+	uint32_t time_t1_gap;                         /** gap between packets in course detection (in ms) */
+	uint32_t time_t2_gap;                         /** gap between packets in fine detection (in ms) */
+	uint32_t coarse_K;                            /** number of times fine motion detection has to be
+							  performed for coarse detection*/
+	uint32_t fine_K;                              /** number of times fine motion detection has to be
+							  performed for fine detection*/
+	uint32_t coarse_Q;                            /** number of times motion is expected to be detected
+							  for success case in coarse detection*/
+	uint32_t fine_Q;                              /** number of times motion is expected to be detected
+							  for success case in fine detection*/
+	uint8_t md_coarse_thr_high;                  /** higher threshold value (in percent)
+                                                          from host to FW, which will be used in
+                                                          coarse detection phase of motion detection.
+                                                          This is the threshold for the correlation
+                                                          of the old RF local-scattering environment
+                                                          with the current RF local-scattering
+                                                          environment.  A value of 100(%) indicates
+                                                          that neither the transceiver nor any
+                                                          nearby objects have changed position. */
+	uint8_t md_fine_thr_high;                    /** higher threshold value (in percent)
+	                                                  from host to FW, which will be used in
+	                                                  fine detection phase of motion detection.
+	                                                  This is the threshold for correlation
+                                                          between the old and current RF environments,
+                                                          as explained above. */
+	uint8_t md_coarse_thr_low;                   /** lower threshold value (in percent)
+                                                          for immediate detection of motion in
+                                                          coarse detection phase.
+                                                          This is the threshold for correlation
+                                                          between the old and current RF environments,
+                                                          as explained above. */
+	uint8_t md_fine_thr_low;                     /** lower threshold value (in percent)
+                                                          for immediate detection of motion in
+                                                          fine detection phase.
+                                                          This is the threshold for correlation
+                                                          between the old and current RF environments,
+                                                          as explained above. */
+} tSirMotionDetConfig;
+
+typedef struct {
+	uint8_t vdev_id;              /** Vdev ID */
+	uint32_t bl_time_t;            /** time T for baseline (in ms), every bl_time_t, bl_n packets are sent */
+	uint32_t bl_packet_gap;        /** gap between packets for baseline (in ms) */
+	uint32_t bl_n;                 /** number of packets to be sent during one baseline */
+	uint32_t bl_num_meas;          /** number of times the baseline measurement to be done */
+} tSirMotionDetBaseLineConfig;
+
+typedef struct {
+	uint8_t vdev_id;              /** Vdev ID */
+	bool enable;               /** start = 1, stop =0 */
+} tSirMotionDetEnable;
+
+typedef struct {
+	uint8_t vdev_id;              /** Vdev ID */
+	bool enable;               /** start = 1, stop =0 */
+} tSirMotionDetBaseLineEnable;
+
+eHalStatus sme_MotionDetConfig(tHalHandle hHal, tSirMotionDetConfig *pMotionDetConfig);
+eHalStatus sme_MotionDetEnable(tHalHandle hHal, tSirMotionDetEnable *pMotionDetEanble);
+eHalStatus sme_MotionDetBaseLineConfig(tHalHandle hHal, tSirMotionDetBaseLineConfig *pMotionDetBaseLineConfig);
+eHalStatus sme_MotionDetBaseLineEnable(tHalHandle hHal, tSirMotionDetBaseLineEnable *pMotionDetBaseLineEnable);
+
+eHalStatus sme_set_mt_host_ev_cb(tHalHandle hHal,
+	VOS_STATUS (*pcallbackfn)(void *pcallbackcontext, tSirMtEvent* pEvent),
+	void *pcallbackcontext);
+#endif
+eHalStatus sme_thermal_throttle_set_conf_cmd(tHalHandle hHal, bool enable,
+                                             tANI_U32 dc, tANI_U32 dc_off_percent,
+                                             tANI_U32 prio);
+eHalStatus sme_thermal_throttle_mgmt_cmd(tHalHandle hHal, tANI_U16 lower_thresh_deg,
+                                         tANI_U16 higher_thresh_deg);
+/**
+ * sme_unpack_rsn_ie: wrapper to unpack RSN IE and update def RSN params
+ * if optional fields are not present.
+ * @hal: handle returned by mac_open
+ * @buf: rsn ie buffer pointer
+ * @buf_len: rsn ie buffer length
+ * @rsn_ie: outframe rsn ie structure
+ * @append_ie: flag to indicate if the rsn_ie need to be appended from buf
+ *
+ * Return: parse status
+ */
+uint32_t sme_unpack_rsn_ie(tHalHandle hal, uint8_t *buf,
+                        uint8_t buf_len, tDot11fIERSN *rsn_ie);
 #endif //#if !defined( __SME_API_H )

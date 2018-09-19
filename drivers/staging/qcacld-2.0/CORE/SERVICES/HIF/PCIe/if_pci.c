@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -2221,6 +2221,8 @@ again:
         sc->hdd_startup_reinit_flag = true;
         if (VOS_STATUS_SUCCESS == hdd_wlan_re_init(ol_sc))
             ret = 0;
+        else
+            ret = -EIO;
         sc->hdd_startup_reinit_flag = false;
     }
 
@@ -2313,7 +2315,13 @@ hif_nointrs(struct hif_pci_softc *sc)
     if (sc->num_msi_intrs > 0) {
         /* MSI interrupt(s) */
         for (i = 0; i < sc->num_msi_intrs; i++) {
-            free_irq(sc->pdev->irq + i, sc);
+            free_irq(
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 11, 0))
+                pci_irq_vector(sc->pdev, i),
+#else
+                sc->pdev->irq + i,
+#endif
+                sc);
         }
         sc->num_msi_intrs = 0;
     } else {
@@ -2360,28 +2368,47 @@ hif_pci_configure(struct hif_pci_softc *sc, hif_handle_t *hif_hdl)
         int i;
         int rv;
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 16, 0)) || defined(WITH_BACKPORTS)
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 11, 0))
+        rv = pci_alloc_irq_vectors(sc->pdev, MSI_NUM_REQUEST, MSI_NUM_REQUEST, PCI_IRQ_ALL_TYPES);
+#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 16, 0)) || defined(WITH_BACKPORTS)
         rv = pci_enable_msi_range(sc->pdev, MSI_NUM_REQUEST, MSI_NUM_REQUEST);
 #else
         rv = pci_enable_msi_block(sc->pdev, MSI_NUM_REQUEST);
 #endif
 
-	if (rv == 0) { /* successfully allocated all MSI interrupts */
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 16, 0)) || defined(WITH_BACKPORTS)
+	if (rv == MSI_NUM_REQUEST) /* successfully allocated all MSI interrupts */
+#else
+	if (rv == 0) /* successfully allocated all MSI interrupts */
+#endif
+    {
 		/*
 		 * TBDXXX: This path not yet tested,
 		 * since Linux x86 does not currently
 		 * support "Multiple MSIs".
 		 */
 		sc->num_msi_intrs = MSI_NUM_REQUEST;
-		ret = request_irq(sc->pdev->irq+MSI_ASSIGN_FW, hif_pci_msi_fw_handler,
-				  IRQF_SHARED, "wlan_pci", sc);
+		ret = request_irq(
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 11, 0))
+				pci_irq_vector(sc->pdev, MSI_ASSIGN_FW),
+#else
+				sc->pdev->irq+MSI_ASSIGN_FW,
+#endif
+				hif_pci_msi_fw_handler,
+				IRQF_SHARED, "wlan_pci", sc);
 		if(ret) {
 			dev_err(&sc->pdev->dev, "request_irq failed\n");
 			goto err_intr;
 		}
 		for (i=MSI_ASSIGN_CE_INITIAL; i<=MSI_ASSIGN_CE_MAX; i++) {
-			ret = request_irq(sc->pdev->irq+i, CE_per_engine_handler, IRQF_SHARED,
-					  "wlan_pci", sc);
+			ret = request_irq(
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 11, 0))
+					pci_irq_vector(sc->pdev, i),
+#else
+					sc->pdev->irq+i,
+#endif
+					CE_per_engine_handler, IRQF_SHARED,
+					"wlan_pci", sc);
 			if(ret) {
 				dev_err(&sc->pdev->dev, "request_irq failed\n");
 				goto err_intr;
@@ -2533,7 +2560,11 @@ err_stalled:
     hif_nointrs(sc);
 err_intr:
     if (num_msi_desired) {
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 11, 0))
+        pci_free_irq_vectors(sc->pdev);
+#else
         pci_disable_msi(sc->pdev);
+#endif
     }
     pci_set_drvdata(sc->pdev, NULL);
 
@@ -2550,8 +2581,10 @@ hif_pci_remove(struct pci_dev *pdev)
     /* Attach did not succeed, all resources have been
      * freed in error handler
      */
-    if (!sc)
+    if (!sc) {
+        hdd_wlan_cleanup();
         return;
+    }
 
     scn = sc->ol_sc;
 
@@ -2588,11 +2621,47 @@ hif_pci_remove(struct pci_dev *pdev)
     printk(KERN_INFO "pci_remove\n");
 }
 
+#ifdef HIF_PCI
+static void hif_pci_ssr_fail_ind(void)
+{
+	v_CONTEXT_t vos_ctx;
+	hdd_context_t *hdd_ctx;
+
+	/* Get the VOS context */
+	vos_ctx = vos_get_global_context(VOS_MODULE_ID_SYS, NULL);
+	if (!vos_ctx) {
+		VOS_TRACE(VOS_MODULE_ID_HIF, VOS_TRACE_LEVEL_ERROR,
+			"%s: Failed vos_get_global_context", __func__);
+		return;
+	}
+
+	/* Get the HDD context */
+	hdd_ctx = (hdd_context_t *)vos_get_context(VOS_MODULE_ID_HDD, vos_ctx);
+	if (!hdd_ctx) {
+		VOS_TRACE(VOS_MODULE_ID_HIF, VOS_TRACE_LEVEL_ERROR,
+			"%s: HDD context is Null", __func__);
+		return;
+	}
+	wlan_hdd_send_svc_nlink_msg(hdd_ctx->radio_index,
+				    WLAN_SVC_SSR_FAIL_IND, NULL, 0);
+	VOS_TRACE(VOS_MODULE_ID_HIF, VOS_TRACE_LEVEL_ERROR,
+		"%s: send WLAN_SVC_SSR_FAIL_IND\n", __func__);
+}
+
+void hif_pci_update_status(struct pci_dev *pdev, uint32_t status)
+{
+	VOS_TRACE(VOS_MODULE_ID_HIF, VOS_TRACE_LEVEL_ERROR,
+		"%s: status=%u\n", __func__, status);
+	if (status == CNSS_SSR_FAIL) {
+		vos_set_ssr_failed(TRUE);
+		hif_pci_ssr_fail_ind();
+	}
+}
+
 /* This function will be called when SSR framework wants to
  * shutdown WLAN host driver when SSR happens. Most of this
  * function is duplicated from hif_pci_remove().
  */
-#ifdef HIF_PCI
 void hif_pci_shutdown(struct pci_dev *pdev)
 {
     void __iomem *mem;
@@ -2649,6 +2718,8 @@ void hif_pci_shutdown(struct pci_dev *pdev)
     hif_pci_pm_runtime_ssr_post_exit(sc);
     hif_deinit_adf_ctx(scn);
     A_FREE(scn);
+    vos_set_context(VOS_MODULE_ID_HIF, NULL);
+
     A_FREE(sc->hif_device);
     A_FREE(sc);
     pci_set_drvdata(pdev, NULL);
@@ -3212,6 +3283,7 @@ struct cnss_wlan_driver cnss_wlan_drv_id = {
     .shutdown   = hif_pci_shutdown,
     .crash_shutdown = hif_pci_crash_shutdown,
     .modem_status   = hif_pci_notify_handler,
+    .update_status  = hif_pci_update_status,
 #ifdef ATH_BUS_PM
     .suspend    = hif_pci_suspend,
     .resume     = hif_pci_resume,

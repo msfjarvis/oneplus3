@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -1551,9 +1551,40 @@ static void hdd_conf_resume_ind(hdd_adapter_t *pAdapter)
                   pHddCtx->configuredMcastBcastFilter);
 }
 
+#ifdef FEATURE_WLAN_THERMAL_SHUTDOWN
+static void hdd_thermal_off_carrier(hdd_adapter_t *pAdapter)
+{
+	if (netif_carrier_ok(pAdapter->dev)) {
+		pAdapter->netif_carrier_on = TRUE;
+		wlan_hdd_netif_queue_control(pAdapter,
+		  WLAN_NETIF_CARRIER_OFF, WLAN_CONTROL_PATH);
+	} else {
+		pAdapter->netif_carrier_on = FALSE;
+	}
+}
+
+static void hdd_thermal_on_carrier(hdd_adapter_t *pAdapter)
+{
+	if (pAdapter->netif_carrier_on) {
+	/* Thermal shutdown is an urgent accident visible to user space. */
+		wlan_hdd_netif_queue_control(pAdapter,
+			WLAN_NETIF_CARRIER_ON, WLAN_CONTROL_PATH);
+	}
+}
+#else
+static inline void hdd_thermal_off_carrier(hdd_adapter_t *pAdapter)
+{
+	return;
+}
+
+static inline void hdd_thermal_on_carrier(hdd_adapter_t *pAdapter)
+{
+	return;
+}
+#endif
 //Suspend routine registered with Android OS
 void hdd_suspend_wlan(void (*callback)(void *callbackContext, boolean suspended),
-                      void *callbackContext)
+                      void *callbackContext, bool thermal)
 {
    hdd_context_t *pHddCtx = NULL;
    v_CONTEXT_t pVosContext = NULL;
@@ -1634,8 +1665,16 @@ void hdd_suspend_wlan(void (*callback)(void *callbackContext, boolean suspended)
 send_suspend_ind:
        //stop all TX queues before suspend
        hddLog(LOG1, FL("Disabling queues"));
+
+      /* Thermal shutdown is an urgent accident visible to user space. */
+        if (thermal) {
+            hdd_thermal_off_carrier(pAdapter);
+        }
+
        wlan_hdd_netif_queue_control(pAdapter, WLAN_NETIF_TX_DISABLE,
-                  WLAN_CONTROL_PATH);
+                      WLAN_CONTROL_PATH);
+
+
        WLANTL_PauseUnPauseQs(pVosContext, true);
 
       /* Keep this suspend indication at the end (before processing next adaptor)
@@ -1788,7 +1827,7 @@ void hdd_unregister_mcast_bcast_filter(hdd_context_t *pHddCtx)
    }
 }
 
-void hdd_resume_wlan(void)
+void hdd_resume_wlan(bool thermal)
 {
    hdd_context_t *pHddCtx = NULL;
    hdd_adapter_t *pAdapter = NULL;
@@ -1882,11 +1921,16 @@ void hdd_resume_wlan(void)
 send_resume_ind:
       //wake the tx queues
       hddLog(LOG1, FL("Enabling queues"));
+
       WLANTL_PauseUnPauseQs(pVosContext, false);
 
       wlan_hdd_netif_queue_control(pAdapter,
-            WLAN_WAKE_ALL_NETIF_QUEUE,
-            WLAN_CONTROL_PATH);
+                WLAN_WAKE_ALL_NETIF_QUEUE,
+                WLAN_CONTROL_PATH);
+
+      if (thermal) {
+        hdd_thermal_on_carrier(pAdapter);
+      }
 
       hdd_conf_resume_ind(pAdapter);
 
@@ -2054,6 +2098,8 @@ VOS_STATUS hdd_wlan_shutdown(void)
             vos_timer_getCurrentState(&pHddCtx->tdls_source_timer))
       vos_timer_stop(&pHddCtx->tdls_source_timer);
 
+   hdd_abort_mac_scan_all_adapters(pHddCtx);
+
 #ifdef FEATURE_BUS_BANDWIDTH
    if (VOS_TIMER_STATE_RUNNING ==
            vos_timer_getCurrentState(&pHddCtx->bus_bw_timer))
@@ -2103,36 +2149,6 @@ VOS_STATUS hdd_wlan_shutdown(void)
    /* Reset the Suspend Variable */
    pHddCtx->isWlanSuspended = FALSE;
 
-   /* Stop all the threads; we do not want any messages to be a processed,
-    * any more and the best way to ensure that is to terminate the threads
-    * gracefully.
-    */
-   /* Wait for MC to exit */
-   hddLog(VOS_TRACE_LEVEL_FATAL, "%s: Shutting down MC thread",__func__);
-   set_bit(MC_SHUTDOWN_EVENT, &vosSchedContext->mcEventFlag);
-   set_bit(MC_POST_EVENT, &vosSchedContext->mcEventFlag);
-   wake_up_interruptible(&vosSchedContext->mcWaitQueue);
-   wait_for_completion(&vosSchedContext->McShutdown);
-
-#ifdef QCA_CONFIG_SMP
-   /* Wait for TLshim RX to exit */
-   hddLog(VOS_TRACE_LEVEL_FATAL, "%s: Shutting down TLshim RX thread",
-          __func__);
-   unregister_hotcpu_notifier(vosSchedContext->cpuHotPlugNotifier);
-   set_bit(RX_SHUTDOWN_EVENT, &vosSchedContext->tlshimRxEvtFlg);
-   set_bit(RX_POST_EVENT, &vosSchedContext->tlshimRxEvtFlg);
-   wake_up_interruptible(&vosSchedContext->tlshimRxWaitQueue);
-   hddLog(VOS_TRACE_LEVEL_FATAL, "%s: Waiting for TLshim RX thread to exit",
-          __func__);
-   wait_for_completion(&vosSchedContext->TlshimRxShutdown);
-   vosSchedContext->TlshimRxThread = NULL;
-   hddLog(VOS_TRACE_LEVEL_FATAL, "%s: Waiting for dropping RX packets",
-          __func__);
-   vos_drop_rxpkt_by_staid(vosSchedContext, WLAN_MAX_STA_COUNT);
-   hddLog(VOS_TRACE_LEVEL_FATAL, "%s: Waiting for freeing freeQ", __func__);
-   vos_free_tlshim_pkt_freeq(vosSchedContext);
-#endif
-
    tl_shim_flush_cache_rx_queue();
 
    hddLog(VOS_TRACE_LEVEL_FATAL, "%s: Doing WDA STOP", __func__);
@@ -2180,16 +2196,11 @@ VOS_STATUS hdd_wlan_shutdown(void)
 
    hdd_unregister_mcast_bcast_filter(pHddCtx);
 
-   hddLog(VOS_TRACE_LEVEL_INFO, "%s: Flush Queues",__func__);
-   /* Clean up message queues of TX, RX and MC thread */
-   vos_sched_flush_mc_mqs(vosSchedContext);
+   hddLog(VOS_TRACE_LEVEL_FATAL, "%s: Doing VOS SCHED Close", __func__);
+   vos_sched_close(vosSchedContext);
 
-   /* Deinit all the TX, RX and MC queues */
-   vos_sched_deinit_mqs(vosSchedContext);
-
-   hddLog(VOS_TRACE_LEVEL_INFO, "%s: Doing VOS Shutdown",__func__);
-   /* shutdown VOSS */
-   vos_shutdown(pVosContext);
+   hddLog(VOS_TRACE_LEVEL_FATAL, "%s: Doing VOS Close", __func__);
+   vos_close(pVosContext);
 
    /*mac context has already been released in mac_close call
      so setting it to NULL in hdd context*/
@@ -2303,7 +2314,11 @@ VOS_STATUS hdd_wlan_re_init(void *hif_sc)
       goto err_re_init;
    }
 
-   ((VosContextType*)pVosContext)->pHIFContext = hif_sc;
+   vosStatus = vos_set_context(VOS_MODULE_ID_HIF, hif_sc);
+   if (!VOS_IS_STATUS_SUCCESS(vosStatus)) {
+      hddLog(VOS_TRACE_LEVEL_FATAL, "%s: failed to set hif context", __func__);
+      goto err_re_init;
+   }
 
    /* The driver should always be initialized in STA mode after SSR */
    if (VOS_STA_SAP_MODE != hdd_get_conparam())
@@ -2534,33 +2549,12 @@ err_re_init:
    if (bug_on_reinit_failure)
       VOS_BUG(0);
    else {
-      pr_err("SSR fails during reinit hence doing cleanup");
-      /* Stop SSR timer */
-      hdd_ssr_timer_del();
-      if (pHddCtx) {
-         /* Unregister all Net Device Notifiers */
-         wlan_hdd_netdev_notifiers_cleanup(pHddCtx);
-         /* Clean up HDD Nlink Service */
-         nl_srv_exit();
-         hdd_runtime_suspend_deinit(pHddCtx);
-         hdd_close_all_adapters(pHddCtx);
-         /* Free up dynamically allocated members
-          * inside HDD Adapter
-          */
-         vos_mem_free(pHddCtx->cfg_ini);
-         pHddCtx->cfg_ini= NULL;
-         /* Destroy all wakelocks */
-         wlan_hdd_wakelocks_destroy(pHddCtx);
-         wlan_hdd_deinit_tx_rx_histogram(pHddCtx);
-         wiphy_unregister(pHddCtx->wiphy);
-         wiphy_free(pHddCtx->wiphy);
-      }
+      hddLog(VOS_TRACE_LEVEL_ERROR, "SSR fails during reinit");
+      vos_set_reinit_in_progress(VOS_MODULE_ID_VOSS, FALSE);
+      hdd_allow_suspend(WIFI_POWER_EVENT_WAKELOCK_DRIVER_REINIT);
+      hdd_wlan_wakelock_destroy();
+      vos_set_context(VOS_MODULE_ID_HIF, NULL);
    }
-   vos_set_reinit_in_progress(VOS_MODULE_ID_VOSS, FALSE);
-   vos_preClose(&pVosContext);
-   /* Allow the phone to go to sleep */
-   hdd_allow_suspend(WIFI_POWER_EVENT_WAKELOCK_DRIVER_REINIT);
-   hdd_wlan_wakelock_destroy();
    return -EPERM;
 success:
    hdd_wlan_ssr_reinit_event();
@@ -2569,4 +2563,16 @@ success:
    pHddCtx->isLogpInProgress = FALSE;
    hdd_ssr_timer_del();
    return VOS_STATUS_SUCCESS;
+}
+
+void hdd_wlan_cleanup(void)
+{
+	ENTER();
+
+	/* Stop SSR timer */
+	hdd_ssr_timer_del();
+	vos_set_logp_in_progress(VOS_MODULE_ID_VOSS, FALSE);
+
+	__hdd_wlan_exit();
+	EXIT();
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -924,6 +924,7 @@ tSirRetStatus uMacPostCtrlMsg(void* pSirGlobal, tSirMbMsg* pMb);
 #define WDA_RATE_UPDATE_IND         SIR_HAL_RATE_UPDATE_IND
 
 #define WDA_INIT_THERMAL_INFO_CMD   SIR_HAL_INIT_THERMAL_INFO_CMD
+#define WDA_INIT_DPD_RECAL_INFO_CMD   SIR_HAL_INIT_DPD_RECAL_INFO_CMD
 #define WDA_SET_THERMAL_LEVEL       SIR_HAL_SET_THERMAL_LEVEL
 
 #define WDA_RMC_ENABLE_IND          SIR_HAL_RMC_ENABLE_IND
@@ -1105,6 +1106,16 @@ tSirRetStatus uMacPostCtrlMsg(void* pSirGlobal, tSirMbMsg* pMb);
 #define WDA_ACTION_FRAME_RANDOM_MAC           SIR_HAL_ACTION_FRAME_RANDOM_MAC
 
 #define WDA_SET_AC_TXQ_OPTIMIZE               SIR_HAL_SET_AC_TXQ_OPTIMIZE
+#define WDA_MNT_FILTER_TYPE_CMD               SIR_HAL_MNT_FILTER_TYPE_CMD
+#define WDA_THERM_THROT_SET_CONF_CMD          SIR_HAL_THERM_THROT_SET_CONF_CMD
+#define WDA_THERMAL_MGMT_CMD                  SIR_HAL_THERM_MGMT_CMD
+
+#ifdef WLAN_FEATURE_MOTION_DETECTION
+#define WDA_SET_MOTION_DET_CONFIG             SIR_HAL_SET_MOTION_DET_CONFIG
+#define WDA_SET_MOTION_DET_ENABLE             SIR_HAL_SET_MOTION_DET_ENABLE
+#define WDA_SET_MOTION_DET_BASE_LINE_CONFIG   SIR_HAL_SET_MOTION_DET_BASE_LINE_CONFIG
+#define WDA_SET_MOTION_DET_BASE_LINE_ENABLE   SIR_HAL_SET_MOTION_DET_BASE_LINE_ENABLE
+#endif
 
 tSirRetStatus wdaPostCtrlMsg(tpAniSirGlobal pMac, tSirMsgQ *pMsg);
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2018 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -79,6 +79,7 @@ typedef enum {
     GEN_PARAM_MODULATED_DTIM,
     GEN_PARAM_CAPTURE_TSF,
     GEN_PARAM_RESET_TSF_GPIO,
+    GEN_PDEV_MONITOR_MODE,
 } GEN_PARAM;
 
 #define VDEV_CMD 1
@@ -105,8 +106,9 @@ VOS_STATUS wma_wmi_work_close(v_VOID_t *vos_context);
 
 v_VOID_t wma_rx_ready_event(WMA_HANDLE handle, v_VOID_t *ev);
 
-v_VOID_t wma_rx_service_ready_event(WMA_HANDLE handle,
-				v_VOID_t *ev);
+v_VOID_t wma_rx_service_ready_event(WMA_HANDLE handle, v_VOID_t *ev);
+
+v_VOID_t wma_rx_service_available_event(WMA_HANDLE handle, v_VOID_t *ev);
 
 v_VOID_t wma_setneedshutdown(v_VOID_t *vos_context);
 
