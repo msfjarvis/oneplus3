@@ -1297,12 +1297,6 @@ static void destroy_devices(unsigned int nr)
 
 	for (i = 0; i < nr; i++) {
 		zram = &zram_devices[i];
-		/*
-		 * Remove sysfs first, so no one will perform a disksize
-		 * store while we destroy the devices
-		 */
-		sysfs_remove_group(&disk_to_dev(zram->disk)->kobj,
-				&zram_disk_attr_group);
 
 		zram_reset_device(zram);
 
